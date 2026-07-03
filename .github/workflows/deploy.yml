@@ -1,0 +1,143 @@
+name: Deploy to Production
+
+# ============================================================
+# CI/CD Pipeline для Apix (Slot Manager)
+# Триггер: push в ветку main
+# Шаги:
+#   1. Checkout кода
+#   2. Установка Node.js 20 + pnpm
+#   3. Установка зависимостей (pnpm install)
+#   4. Проверка TypeScript (сервер + клиент)
+#   5. Сборка клиента (Vite PWA)
+#   6. Сборка Docker-образов
+#   7. Деплой на сервер (копирование файлов + перезапуск контейнеров)
+# ============================================================
+
+on:
+  push:
+    branches:
+      - main
+  # Возможность ручного запуска из интерфейса GitHub
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------------------------------------------
+      # Шаг 1: Получение исходного кода из репозитория
+      # ----------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      # Шаг 2: Установка Node.js (используется для сборки клиента)
+      # ----------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # ----------------------------------------------------------
+      # Шаг 3: Установка pnpm — быстрый пакетный менеджер
+      # ----------------------------------------------------------
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      # ----------------------------------------------------------
+      # Шаг 4: Кэширование pnpm store для ускорения сборки
+      # ----------------------------------------------------------
+      - name: Get pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      # ----------------------------------------------------------
+      # Шаг 5: Установка зависимостей монорепо
+      # ----------------------------------------------------------
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ----------------------------------------------------------
+      # Шаг 5.1: Сборка @apix/shared (необходима для типов)
+      # ----------------------------------------------------------
+      - name: Build shared package
+        run: pnpm --filter @apix/shared build
+
+      # ----------------------------------------------------------
+      # Шаг 6: Проверка TypeScript-компиляции сервера
+      # ----------------------------------------------------------
+      - name: TypeScript check — server
+        run: cd apps/server && pnpm tsc --noEmit
+
+      # ----------------------------------------------------------
+      # Шаг 7: Проверка TypeScript-компиляции клиента
+      # ----------------------------------------------------------
+      - name: TypeScript check — client
+        run: cd apps/client && pnpm tsc --noEmit
+
+      # ----------------------------------------------------------
+      # Шаг 8: Сборка клиента (Vite, PWA с Workbox)
+      # ----------------------------------------------------------
+      - name: Build client
+        run: cd apps/client && pnpm build
+
+      # ----------------------------------------------------------
+      # Шаг 9: Сборка Docker-образов (docker compose)
+      # ----------------------------------------------------------
+      - name: Build Docker images
+        run: docker compose build
+
+      # ----------------------------------------------------------
+      # Шаг 10: Деплой на сервер
+      # Использует секреты GitHub:
+      #   - DEPLOY_HOST: IP или домен сервера
+      #   - DEPLOY_USER: пользователь для SSH
+      #   - DEPLOY_SSH_KEY: приватный SSH-ключ
+      # ----------------------------------------------------------
+      - name: Deploy to server
+        uses: easingthemes/ssh-deploy@v5.0.3
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.DEPLOY_HOST }}
+          REMOTE_USER: ${{ secrets.DEPLOY_USER }}
+          TARGET: /opt/apix
+          EXCLUDE: |
+            node_modules/
+            .pnpm-store/
+            .git/
+            postgres_data/
+            minio_data/
+            certs/
+
+      # ----------------------------------------------------------
+      # Шаг 11: Перезапуск контейнеров на сервере
+      # ----------------------------------------------------------
+      - name: Restart containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/apix
+            docker compose down
+            docker compose up -d --build
+            docker compose ps

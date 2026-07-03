@@ -1,0 +1,5 @@
+﻿drizzle-kit: v0.22.0
+drizzle-orm: v0.36.0
+
+This version of drizzle-kit is outdated
+Please update drizzle-kit package to the latest version ЁЯСН

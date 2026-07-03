@@ -1,0 +1,11 @@
+﻿docker : time="2026-06-29T15:03:06+03:00" level=warning msg="C:\\Users\\Evgeny\\Projects\\Apix\\docker-compose.yml: the at
+tribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+строка:1 знак:1
++ docker compose ps *>&1 | Out-File -FilePath docker_ps2.txt -Encoding  ...
++ ~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (time="2026-06-2...tial confusion":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+NAME            IMAGE                COMMAND                  SERVICE    CREATED          STATUS                        PORTS
+apix-minio      minio/minio:latest   "/usr/bin/docker-entтАж"   minio      18 minutes ago   Up About a minute (healthy)   9000-9001/tcp
+apix-postgres   postgres:16-alpine   "docker-entrypoint.sтАж"   postgres   18 minutes ago   Up 5 minutes (healthy)        0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp

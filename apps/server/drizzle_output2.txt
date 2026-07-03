@@ -1,0 +1,6 @@
+﻿drizzle-kit: v0.20.0
+drizzle-orm: v0.30.0
+
+No config path provided, using default path
+Reading config file 'C:\Users\Evgeny\Projects\Apix\apps\server\drizzle.config.ts'
+ Invalid input  Only "pg" is available options for "--driver"

@@ -1,0 +1,23 @@
+﻿                   ╤яшёюъ ЄрсышЎ
+  ╤їхьр   |        ╚ь\xFF        |  ╥ш  | ┬ырфхыхЎ 
+--------+---------------------+-----+------
+ public | audit_log           | ЄрсышЎр | apix
+ public | audit_log_archive   | ЄрсышЎр | apix
+ public | locations           | ЄрсышЎр | apix
+ public | machine_placements  | ЄрсышЎр | apix
+ public | machine_routes      | ЄрсышЎр | apix
+ public | machine_technicians | ЄрсышЎр | apix
+ public | machine_toys        | ЄрсышЎр | apix
+ public | machine_type_toys   | ЄрсышЎр | apix
+ public | machine_types       | ЄрсышЎр | apix
+ public | machines            | ЄрсышЎр | apix
+ public | refresh_tokens      | ЄрсышЎр | apix
+ public | route_locations     | ЄрсышЎр | apix
+ public | routes              | ЄрсышЎр | apix
+ public | service             | ЄрсышЎр | apix
+ public | staff               | ЄрсышЎр | apix
+ public | toy_distribution    | ЄрсышЎр | apix
+ public | toy_price_history   | ЄрсышЎр | apix
+ public | toys                | ЄрсышЎр | apix
+(18 ёЄЁюъ)
+

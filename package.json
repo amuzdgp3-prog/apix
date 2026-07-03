@@ -1,0 +1,22 @@
+{
+  "name": "apix-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Apix (Slot Manager) — учёт работы игровых аппаратов",
+  "scripts": {
+    "dev": "pnpm --filter @apix/shared build && pnpm --parallel run dev",
+    "build": "pnpm --recursive run build",
+    "lint": "pnpm --recursive run lint",
+    "clean": "pnpm --recursive run clean"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "^0.0.76",
+    "@playwright/test": "^1.61.1",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0"
+  }
+}

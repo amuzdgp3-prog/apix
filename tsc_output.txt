@@ -1,0 +1,7 @@
+﻿node.exe : $ tsc
+C:\Users\Evgeny\AppData\Roaming\npm\pnpm.ps1:24 знак:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.mjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ($ tsc:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

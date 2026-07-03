@@ -1,0 +1,10 @@
+﻿docker : time="2026-06-29T15:01:06+03:00" level=warning msg="C:\\Users\\Evgeny\\Projects\\Apix\\docker-compose.yml: the at
+tribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+строка:1 знак:1
++ docker compose up -d minio *>&1 | Out-File -FilePath minio_start.txt  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (time="2026-06-2...tial confusion":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ Container apix-minio Starting 
+ Container apix-minio Started 

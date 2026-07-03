@@ -1,0 +1,27 @@
+﻿drizzle-kit: v0.20.0
+drizzle-orm: v0.30.0
+
+No config path provided, using default path
+Reading config file 'C:\Users\Evgeny\Projects\Apix\apps\server\drizzle.config.ts'
+node.exe : TypeError: Cannot read properties of undefined (reading 'split')
+строка:1 знак:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (TypeError: Cann...eading 'split'):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at Object.unsquashPK (C:\Users\Evgeny\Projects\Apix\node_modules\.pnpm\drizzle-kit@0.20.0\node_modules\drizzle-kit\ind
+ex.cjs:4711:58)
+    at C:\Users\Evgeny\Projects\Apix\node_modules\.pnpm\drizzle-kit@0.20.0\node_modules\drizzle-kit\index.cjs:17088:42
+    at Array.map (<anonymous>)
+    at prepareAddCompositePrimaryKeyPg (C:\Users\Evgeny\Projects\Apix\node_modules\.pnpm\drizzle-kit@0.20.0\node_modules\d
+rizzle-kit\index.cjs:17087:33)
+    at C:\Users\Evgeny\Projects\Apix\node_modules\.pnpm\drizzle-kit@0.20.0\node_modules\drizzle-kit\index.cjs:17523:33
+    at Array.forEach (<anonymous>)
+    at applySnapshotsDiff (C:\Users\Evgeny\Projects\Apix\node_modules\.pnpm\drizzle-kit@0.20.0\node_modules\drizzle-kit\in
+dex.cjs:17478:26)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async prepareSQL (C:\Users\Evgeny\Projects\Apix\node_modules\.pnpm\drizzle-kit@0.20.0\node_modules\drizzle-kit\inde
+x.cjs:15081:14)
+    at async preparePgPush (C:\Users\Evgeny\Projects\Apix\node_modules\.pnpm\drizzle-kit@0.20.0\node_modules\drizzle-kit\i
+ndex.cjs:14934:47)

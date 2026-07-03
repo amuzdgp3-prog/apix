@@ -1,0 +1,5 @@
+﻿CONTAINER ID   IMAGE                COMMAND                  CREATED       STATUS                       PORTS                                                             NAMES
+f94e2d2a7c5e   postgres:16-alpine   "docker-entrypoint.sтАж"   2 hours ago   Up About an hour (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp                       apix-postgres
+8273ae74a97c   minio/minio:latest   "/usr/bin/docker-entтАж"   2 hours ago   Up About an hour (healthy)   9000-9001/tcp                                                     apix-minio
+e75cffc10871   postgres:16-alpine   "docker-entrypoint.sтАж"   4 days ago    Up About an hour (healthy)   0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp                       slot-manager-postgres-1
+92ba3bee0fe8   minio/minio:latest   "/usr/bin/docker-entтАж"   4 days ago    Up About an hour (healthy)   0.0.0.0:9000-9001->9000-9001/tcp, [::]:9000-9001->9000-9001/tcp   slot-manager-minio-1

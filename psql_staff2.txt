@@ -1,0 +1,26 @@
+﻿                                      ╥рсышЎр "public.staff"
+     ╤Єюыс     |            ╥ш             | ╧Ёртшыю ёюЁЄшЁютъш | ─юяєёЄшьюёЄ№ NULL |           ╧ю єьюы\u1E0B\xFE           
+------------+--------------------------+----------+----------+-----------------------------------
+ id         | integer                  |          | not null | nextval('staff_id_seq'::regclass)
+ email      | character varying(255)   |          | not null | 
+ full_name  | character varying(255)   |          | not null | 
+ password   | character varying(255)   |          | not null | 
+ role       | character varying(20)    |          | not null | 
+ city_id    | integer                  |          |          | 
+ is_active  | boolean                  |          | not null | true
+ created_at | timestamp with time zone |          | not null | now()
+ updated_at | timestamp with time zone |          | not null | now()
+╚эфхъё√:
+    "staff_pkey" PRIMARY KEY, btree (id)
+    "staff_email_unique" UNIQUE CONSTRAINT, btree (email)
+╬уЁрэшўхэш  тэх°эхую ъы■ўр:
+    "staff_city_id_locations_id_fk" FOREIGN KEY (city_id) REFERENCES locations(id)
+╤ё√ыъш шчтэх:
+    TABLE "audit_log_archive" CONSTRAINT "audit_log_archive_user_id_staff_id_fk" FOREIGN KEY (user_id) REFERENCES staff(id)
+    TABLE "audit_log" CONSTRAINT "audit_log_user_id_staff_id_fk" FOREIGN KEY (user_id) REFERENCES staff(id)
+    TABLE "machine_placements" CONSTRAINT "machine_placements_created_by_staff_id_fk" FOREIGN KEY (created_by) REFERENCES staff(id)
+    TABLE "machine_technicians" CONSTRAINT "machine_technicians_staff_id_staff_id_fk" FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE
+    TABLE "refresh_tokens" CONSTRAINT "refresh_tokens_staff_id_staff_id_fk" FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE
+    TABLE "service" CONSTRAINT "service_staff_id_staff_id_fk" FOREIGN KEY (staff_id) REFERENCES staff(id)
+    TABLE "toy_price_history" CONSTRAINT "toy_price_history_created_by_staff_id_fk" FOREIGN KEY (created_by) REFERENCES staff(id)
+

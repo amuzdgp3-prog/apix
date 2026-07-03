@@ -1,0 +1,327 @@
+﻿docker : time="2026-06-29T15:18:53+03:00" level=warning msg="C:\\Users\\Evgeny\\Projects\\Apix\\docker-compose.yml: the at
+tribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+строка:1 знак:35
++ cd C:\Users\Evgeny\Projects\Apix; docker compose up -d *>&1 | Out-Fil ...
++                                   ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (time="2026-06-2...tial confusion":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ Image apix-server Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 527B 0.1s done
+#1 DONE 0.1s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.45kB 0.1s done
+#2 DONE 0.2s
+
+#3 [internal] load metadata for docker.io/library/node:22-alpine
+#3 DONE 3.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B 0.0s done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [builder  1/11] FROM docker.io/library/node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2
+#6 resolve docker.io/library/node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2
+#6 resolve docker.io/library/node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 0.2s done
+#6 DONE 0.3s
+
+#7 [builder  2/11] RUN corepack enable && corepack prepare pnpm@latest --activate
+#7 CACHED
+
+#8 [builder  3/11] WORKDIR /app
+#8 CACHED
+
+#5 [internal] load build context
+#5 transferring context: 487.12kB 0.6s done
+#5 DONE 0.7s
+
+#9 [builder  4/11] COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+#9 DONE 0.4s
+
+#10 [builder  5/11] COPY packages/shared/package.json packages/shared/
+#10 DONE 0.3s
+
+#11 [builder  6/11] COPY apps/server/package.json apps/server/
+#11 DONE 0.3s
+
+#12 [builder  7/11] RUN pnpm install --frozen-lockfile
+#12 14.65 Scope: all 3 workspace projects
+#12 15.82 ? Verifying lockfile against supply-chain policies (961 entries)...
+#12 15.90 Lockfile is up to date, resolution step is skipped
+#12 21.26 Progress: resolved 1, reused 0, downloaded 0, added 0
+#12 21.86 Packages: +392
+#12 21.86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#12 23.32 Progress: resolved 392, reused 0, downloaded 0, added 0
+#12 33.08 [WARN] Request took 17144ms: https://registry.npmjs.org/@alloc%2Fquick-lru
+#12 34.79 [WARN] Request took 18637ms: https://registry.npmjs.org/@babel%2Fhelper-globals
+#12 36.37 [WARN] GET https://registry.npmjs.org/@babel%2Fplugin-bugfix-safari-class-field-initializer-scope error (ECONNRESET). Will retry in 10 seconds. 2 retries left.
+#12 37.22 [WARN] Request took 20758ms: https://registry.npmjs.org/@babel%2Fplugin-bugfix-safari-rest-destructuring-rhs-array
+#12 42.43 [WARN] Request took 25897ms: https://registry.npmjs.org/@babel%2Fplugin-syntax-unicode-sets-regex
+#12 42.43 [WARN] Request took 25588ms: https://registry.npmjs.org/@babel%2Fplugin-transform-explicit-resource-management
+#12 42.94 [WARN] Request took 26085ms: https://registry.npmjs.org/@babel%2Fplugin-transform-export-namespace-from
+#12 42.94 [WARN] Request took 26095ms: https://registry.npmjs.org/@babel%2Fplugin-transform-logical-assignment-operators
+#12 43.84 [WARN] Request took 27346ms: https://registry.npmjs.org/@babel%2Fplugin-syntax-import-attributes
+#12 43.89 [WARN] Request took 27551ms: https://registry.npmjs.org/@babel%2Fplugin-bugfix-firefox-class-in-computed-class-key
+#12 44.03 [WARN] Request took 28087ms: https://registry.npmjs.org/@apideck%2Fbetter-ajv-errors
+#12 44.07 [WARN] Request took 27656ms: https://registry.npmjs.org/@babel%2Fplugin-bugfix-v8-static-class-fields-redefine-readonly
+#12 44.29 [WARN] Request took 27459ms: https://registry.npmjs.org/@babel%2Fplugin-transform-json-strings
+#12 44.36 [WARN] Request took 27543ms: https://registry.npmjs.org/@babel%2Fplugin-transform-dynamic-import
+#12 44.46 [WARN] Request took 27812ms: https://registry.npmjs.org/@babel%2Fplugin-transform-class-properties
+#12 44.61 [WARN] Request took 28045ms: https://registry.npmjs.org/@babel%2Fplugin-transform-async-generator-functions
+#12 44.61 [WARN] Request took 28340ms: https://registry.npmjs.org/@babel%2Fhelper-string-parser
+#12 44.72 [WARN] Request took 28063ms: https://registry.npmjs.org/@babel%2Fplugin-transform-class-static-block
+#12 44.80 [WARN] Request took 28432ms: https://registry.npmjs.org/@babel%2Fplugin-bugfix-safari-id-destructuring-collision-in-function-expression
+#12 44.82 [WARN] Request took 28404ms: https://registry.npmjs.org/@babel%2Fplugin-proposal-private-property-in-object
+#12 44.89 [WARN] Request took 28647ms: https://registry.npmjs.org/@babel%2Fhelper-skip-transparent-expression-wrappers
+#12 44.89 [WARN] Request took 28611ms: https://registry.npmjs.org/@babel%2Fhelper-validator-option
+#12 44.90 [WARN] Request took 28438ms: https://registry.npmjs.org/@babel%2Fplugin-syntax-import-assertions
+#12 44.98 [WARN] Request took 28143ms: https://registry.npmjs.org/@babel%2Fplugin-transform-function-name
+#12 45.08 [WARN] Request took 28947ms: https://registry.npmjs.org/@babel%2Fhelper-define-polyfill-provider
+#12 45.20 [WARN] Request took 28432ms: https://registry.npmjs.org/@babel%2Fplugin-transform-duplicate-named-capturing-groups-regex
+#12 45.21 [WARN] Request took 28814ms: https://registry.npmjs.org/@babel%2Fplugin-bugfix-v8-spread-parameters-in-optional-chaining
+#12 45.24 [WARN] Request took 28409ms: https://registry.npmjs.org/@babel%2Fplugin-transform-for-of
+#12 45.26 [WARN] Request took 28425ms: https://registry.npmjs.org/@babel%2Fplugin-transform-literals
+#12 45.38 [WARN] Request took 29103ms: https://registry.npmjs.org/@babel%2Fhelper-validator-identifier
+#12 45.48 [WARN] Request took 10703ms: https://registry.npmjs.org/@babel%2Fplugin-transform-new-target
+#12 45.71 [WARN] Request took 28876ms: https://registry.npmjs.org/@babel%2Fplugin-transform-exponentiation-operator
+#12 45.76 [WARN] Request took 28923ms: https://registry.npmjs.org/@babel%2Fplugin-transform-member-expression-literals
+#12 45.82 [WARN] Request took 28971ms: https://registry.npmjs.org/@babel%2Fplugin-transform-modules-umd
+#12 45.85 [WARN] Request took 28998ms: https://registry.npmjs.org/@babel%2Fplugin-transform-modules-commonjs
+#12 45.95 [WARN] Request took 29918ms: https://registry.npmjs.org/@babel%2Fhelper-annotate-as-pure
+#12 46.42 [WARN] Request took 30220ms: https://registry.npmjs.org/@babel%2Fhelper-optimise-call-expression
+#12 46.47 [WARN] Request took 30252ms: https://registry.npmjs.org/@babel%2Fhelper-plugin-utils
+#12 46.63 [WARN] Request took 30674ms: https://registry.npmjs.org/@babel%2Fcode-frame
+#12 46.63 [WARN] Request took 30514ms: https://registry.npmjs.org/@babel%2Fhelper-create-regexp-features-plugin
+#12 46.78 [WARN] Request took 30159ms: https://registry.npmjs.org/@babel%2Fplugin-transform-block-scoped-functions
+#12 46.80 [WARN] Request took 29948ms: https://registry.npmjs.org/@babel%2Fplugin-transform-modules-systemjs
+#12 46.83 [WARN] Request took 29975ms: https://registry.npmjs.org/@babel%2Fplugin-transform-named-capturing-groups-regex
+#12 46.94 [WARN] Request took 30778ms: https://registry.npmjs.org/@babel%2Fhelper-module-imports
+#12 46.99 [WARN] Request took 30458ms: https://registry.npmjs.org/@babel%2Fplugin-transform-arrow-functions
+#12 47.02 [WARN] Request took 30671ms: https://registry.npmjs.org/@babel%2Fplugin-bugfix-safari-class-field-initializer-scope
+#12 47.15 [WARN] Request took 30931ms: https://registry.npmjs.org/@babel%2Fhelper-remap-async-to-generator
+#12 47.23 [WARN] Request took 30935ms: https://registry.npmjs.org/@babel%2Fhelper-wrap-function
+#12 47.27 [WARN] Request took 31207ms: https://registry.npmjs.org/@babel%2Fhelper-compilation-targets
+#12 47.33 [WARN] Request took 31174ms: https://registry.npmjs.org/@babel%2Fhelper-member-expression-to-functions
+#12 47.35 [WARN] Request took 30745ms: https://registry.npmjs.org/@babel%2Fplugin-transform-async-to-generator
+#12 47.52 [WARN] Request took 30661ms: https://registry.npmjs.org/@babel%2Fplugin-transform-modules-amd
+#12 47.59 [WARN] Request took 30893ms: https://registry.npmjs.org/@babel%2Fplugin-transform-computed-properties
+#12 47.70 [WARN] Request took 30964ms: https://registry.npmjs.org/@babel%2Fplugin-transform-dotall-regex
+#12 47.76 [WARN] Request took 31519ms: https://registry.npmjs.org/@babel%2Fhelper-replace-supers
+#12 47.77 [WARN] Request took 31019ms: https://registry.npmjs.org/@babel%2Fplugin-transform-duplicate-keys
+#12 47.96 [WARN] Request took 31974ms: https://registry.npmjs.org/@babel%2Fcompat-data
+#12 48.43 [WARN] Request took 31768ms: https://registry.npmjs.org/@babel%2Fplugin-transform-block-scoping
+#12 48.44 [WARN] Request took 32259ms: https://registry.npmjs.org/@babel%2Fhelper-module-transforms
+#12 48.56 [WARN] Request took 31868ms: https://registry.npmjs.org/@babel%2Fplugin-transform-classes
+#12 48.73 [WARN] Request took 32623ms: https://registry.npmjs.org/@babel%2Fhelper-create-class-features-plugin
+#12 48.95 [WARN] Request took 32644ms: https://registry.npmjs.org/@babel%2Fhelpers
+#12 49.44 [WARN] Request took 32714ms: https://registry.npmjs.org/@babel%2Fplugin-transform-destructuring
+#12 50.79 [WARN] Request took 34751ms: https://registry.npmjs.org/@babel%2Fgenerator
+#12 51.42 Progress: resolved 392, reused 0, downloaded 1, added 0
+#12 52.62 Progress: resolved 392, reused 0, downloaded 7, added 0
+#12 52.85 [WARN] Request took 36848ms: https://registry.npmjs.org/@babel%2Fcore
+#12 52.92 [WARN] Request took 36597ms: https://registry.npmjs.org/@babel%2Fparser
+#12 53.66 Progress: resolved 392, reused 0, downloaded 27, added 0
+#12 56.40 Progress: resolved 392, reused 0, downloaded 34, added 0
+#12 57.57 Progress: resolved 392, reused 0, downloaded 50, added 0
+#12 58.78 Progress: resolved 392, reused 0, downloaded 57, added 0
+#12 59.62 [WARN] Request took 10065ms: https://registry.npmjs.org/@radix-ui%2Freact-label
+#12 60.23 Progress: resolved 392, reused 0, downloaded 60, added 0
+#12 60.30 [WARN] Request took 10641ms: https://registry.npmjs.org/@radix-ui%2Freact-primitive
+#12 62.71 [WARN] Request took 13171ms: https://registry.npmjs.org/@radix-ui%2Freact-focus-scope
+#12 63.00 [WARN] Request took 13463ms: https://registry.npmjs.org/@radix-ui%2Freact-id
+#12 64.00 [WARN] Request took 14657ms: https://registry.npmjs.org/@radix-ui%2Freact-collection
+#12 64.17 Progress: resolved 392, reused 0, downloaded 61, added 0
+#12 64.31 [WARN] Request took 14650ms: https://registry.npmjs.org/@radix-ui%2Freact-presence
+#12 64.39 [WARN] Request took 14742ms: https://registry.npmjs.org/@radix-ui%2Freact-portal
+#12 64.97 [WARN] Request took 10543ms: https://registry.npmjs.org/@types%2Freact-dom
+#12 65.24 Progress: resolved 392, reused 0, downloaded 63, added 1
+#12 65.42 [WARN] Request took 15164ms: https://registry.npmjs.org/@radix-ui%2Freact-switch
+#12 65.68 [WARN] Request took 16061ms: https://registry.npmjs.org/@radix-ui%2Freact-popper
+#12 65.88 [WARN] Request took 16578ms: https://registry.npmjs.org/@radix-ui%2Freact-checkbox
+#12 66.39 Progress: resolved 392, reused 0, downloaded 73, added 4
+#12 66.90 [WARN] Request took 16635ms: https://registry.npmjs.org/@radix-ui%2Freact-toast
+#12 67.61 Progress: resolved 392, reused 0, downloaded 77, added 4
+#12 67.82 [WARN] Request took 17553ms: https://registry.npmjs.org/@radix-ui%2Freact-tabs
+#12 68.74 [WARN] Request took 18349ms: https://registry.npmjs.org/@radix-ui%2Freact-visually-hidden
+#12 69.13 Progress: resolved 392, reused 0, downloaded 79, added 4
+#12 70.30 [WARN] Request took 17314ms: https://registry.npmjs.org/@tanstack%2Fquery-core
+#12 71.11 [WARN] Request took 11023ms: https://registry.npmjs.org/bluebird
+#12 72.73 Progress: resolved 392, reused 0, downloaded 80, added 4
+#12 73.07 [WARN] Request took 23694ms: https://registry.npmjs.org/@radix-ui%2Freact-dialog
+#12 73.83 Progress: resolved 392, reused 0, downloaded 83, added 4
+#12 74.42 [WARN] Request took 16818ms: https://registry.npmjs.org/autoprefixer
+#12 75.12 Progress: resolved 392, reused 0, downloaded 93, added 4
+#12 75.18 [WARN] Request took 12685ms: https://registry.npmjs.org/browserslist
+#12 75.58 [WARN] Request took 25924ms: https://registry.npmjs.org/@radix-ui%2Freact-roving-focus
+#12 75.61 [WARN] Request took 10308ms: https://registry.npmjs.org/core-js-compat
+#12 75.80 [WARN] Request took 26408ms: https://registry.npmjs.org/@radix-ui%2Freact-dismissable-layer
+#12 76.08 [WARN] Request took 19153ms: https://registry.npmjs.org/ajv
+#12 76.37 Progress: resolved 392, reused 0, downloaded 103, added 4
+#12 77.02 [WARN] Request took 27356ms: https://registry.npmjs.org/@radix-ui%2Freact-select
+#12 77.46 Progress: resolved 392, reused 0, downloaded 111, added 4
+#12 77.53 [WARN] Request took 28056ms: https://registry.npmjs.org/@radix-ui%2Freact-dropdown-menu
+#12 78.24 [WARN] Request took 25284ms: https://registry.npmjs.org/@tanstack%2Freact-query
+#12 78.29 [WARN] Request took 11858ms: https://registry.npmjs.org/dayjs
+#12 78.49 [WARN] Request took 11414ms: https://registry.npmjs.org/dexie
+#12 78.58 Progress: resolved 392, reused 0, downloaded 120, added 4
+#12 79.60 Progress: resolved 392, reused 0, downloaded 128, added 8
+#12 80.03 [WARN] Request took 25498ms: https://registry.npmjs.org/@types%2Freact
+#12 80.79 Progress: resolved 392, reused 0, downloaded 139, added 8
+#12 81.06 [WARN] Request took 31492ms: https://registry.npmjs.org/@radix-ui%2Freact-menu
+#12 81.86 Progress: resolved 392, reused 0, downloaded 152, added 8
+#12 82.98 Progress: resolved 392, reused 0, downloaded 160, added 8
+#12 84.09 Progress: resolved 392, reused 0, downloaded 164, added 8
+#12 85.40 Progress: resolved 392, reused 0, downloaded 169, added 8
+#12 86.62 Progress: resolved 392, reused 0, downloaded 170, added 8
+#12 87.71 Progress: resolved 392, reused 0, downloaded 181, added 9
+#12 88.88 Progress: resolved 392, reused 0, downloaded 182, added 12
+#12 89.39 [WARN] Request took 15107ms: https://registry.npmjs.org/fastify
+#12 89.93 Progress: resolved 392, reused 0, downloaded 192, added 12
+#12 90.69 [WARN] Request took 11883ms: https://registry.npmjs.org/jake
+#12 90.88 [WARN] Request took 18066ms: https://registry.npmjs.org/esbuild
+#12 91.02 Progress: resolved 392, reused 0, downloaded 219, added 12
+#12 91.98 [WARN] Request took 23899ms: https://registry.npmjs.org/drizzle-kit
+#12 92.18 Progress: resolved 392, reused 0, downloaded 241, added 13
+#12 92.61 [WARN] Request took 13790ms: https://registry.npmjs.org/jiti
+#12 92.67 [WARN] Request took 10300ms: https://registry.npmjs.org/pino
+#12 93.32 Progress: resolved 392, reused 0, downloaded 256, added 16
+#12 94.11 [WARN] Request took 29990ms: https://registry.npmjs.org/caniuse-lite
+#12 94.64 Progress: resolved 392, reused 0, downloaded 265, added 16
+#12 95.83 Progress: resolved 392, reused 0, downloaded 284, added 17
+#12 96.48 [WARN] Request took 16131ms: https://registry.npmjs.org/lucide-react
+#12 97.18 Progress: resolved 392, reused 0, downloaded 298, added 20
+#12 98.21 Progress: resolved 392, reused 0, downloaded 307, added 20
+#12 98.37 [WARN] Request took 12246ms: https://registry.npmjs.org/recharts
+#12 99.26 Progress: resolved 392, reused 0, downloaded 314, added 20
+#12 100.3 Progress: resolved 392, reused 0, downloaded 318, added 20
+#12 100.4 [WARN] Request took 10116ms: https://registry.npmjs.org/prettier
+#12 100.8 [WARN] Request took 32509ms: https://registry.npmjs.org/drizzle-orm
+#12 101.2 [WARN] Request took 10731ms: https://registry.npmjs.org/tailwind-merge
+#12 101.3 Progress: resolved 392, reused 0, downloaded 327, added 20
+#12 101.4 [WARN] Request took 16278ms: https://registry.npmjs.org/react-router-dom
+#12 101.7 [WARN] Request took 10121ms: https://registry.npmjs.org/postcss
+#12 102.0 [WARN] Request took 10854ms: https://registry.npmjs.org/type-fest
+#12 102.4 [WARN] Request took 17222ms: https://registry.npmjs.org/react-router
+#12 102.4 Progress: resolved 392, reused 0, downloaded 348, added 23
+#12 103.2 [WARN] Request took 48802ms: https://registry.npmjs.org/@types%2Fnode
+#12 103.5 Progress: resolved 392, reused 0, downloaded 364, added 24
+#12 104.5 Progress: resolved 392, reused 0, downloaded 382, added 24
+#12 104.9 [WARN] Request took 36095ms: https://registry.npmjs.org/electron-to-chromium
+#12 106.8 Progress: resolved 392, reused 0, downloaded 384, added 24
+#12 107.8 Progress: resolved 392, reused 0, downloaded 387, added 24
+#12 108.8 Progress: resolved 392, reused 0, downloaded 391, added 49
+#12 109.3 [WARN] Request took 21951ms: https://registry.npmjs.org/rollup
+#12 109.4 [WARN] GET https://registry.npmjs.org/@playwright%2Ftest error (23). Will retry in 10 seconds. 2 retries left.
+#12 109.8 [WARN] Request took 24935ms: https://registry.npmjs.org/react-hook-form
+#12 109.9 Progress: resolved 392, reused 0, downloaded 391, added 82
+#12 112.5 [WARN] Request took 26717ms: https://registry.npmjs.org/react-is
+#12 112.6 Progress: resolved 392, reused 0, downloaded 391, added 110
+#12 112.9 [WARN] Request took 27113ms: https://registry.npmjs.org/react
+#12 113.7 [WARN] Request took 25917ms: https://registry.npmjs.org/scheduler
+#12 113.9 Progress: resolved 392, reused 0, downloaded 392, added 117
+#12 114.1 [WARN] Request took 21771ms: https://registry.npmjs.org/vite
+#12 114.2 [WARN] Request took 29223ms: https://registry.npmjs.org/react-dom
+#12 114.4 [WARN] Request took 29318ms: https://registry.npmjs.org/react-refresh
+#12 114.9 Progress: resolved 392, reused 0, downloaded 392, added 178
+#12 115.4 [WARN] Request took 24880ms: https://registry.npmjs.org/tailwindcss
+#12 115.9 Progress: resolved 392, reused 0, downloaded 392, added 245
+#12 116.3 [WARN] Request took 33723ms: https://registry.npmjs.org/playwright
+#12 117.0 [WARN] Request took 25738ms: https://registry.npmjs.org/typescript
+#12 117.1 Progress: resolved 392, reused 0, downloaded 392, added 326
+#12 117.7 [WARN] Request took 35256ms: https://registry.npmjs.org/playwright-core
+#12 118.1 Progress: resolved 392, reused 0, downloaded 392, added 340
+#12 119.0 Progress: resolved 392, reused 0, downloaded 392, added 392, done
+#12 121.9 тЬУ Lockfile passes supply-chain policies (961 entries in 1m 46s)
+#12 122.0 .../bcrypt@5.1.1/node_modules/bcrypt install$ node-pre-gyp install --fallback-to-build
+#12 122.1 .../esbuild@0.19.7/node_modules/esbuild postinstall$ node install.js
+#12 122.1 .../esbuild@0.28.1/node_modules/esbuild postinstall$ node install.js
+#12 122.2 .../esbuild@0.18.20/node_modules/esbuild postinstall$ node install.js
+#12 123.2 .../esbuild@0.28.1/node_modules/esbuild postinstall: Done
+#12 123.2 .../esbuild@0.18.20/node_modules/esbuild postinstall: Done
+#12 123.2 .../esbuild@0.19.7/node_modules/esbuild postinstall: Done
+#12 123.7 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp info it worked if it ends with ok
+#12 123.7 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp info using node-pre-gyp@1.0.11
+#12 123.7 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp info using node@22.23.1 | linux | x64
+#12 124.1 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp info check checked for "/app/node_modules/.pnpm/bcrypt@5.1.1/node_modules/bcrypt/lib/binding/napi-v3/bcrypt_lib.node" (not found)
+#12 124.1 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp http GET https://github.com/kelektiv/node.bcrypt.js/releases/download/v5.1.1/bcrypt_lib-v5.1.1-napi-v3-linux-x64-musl.tar.gz
+#12 124.5 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp info install unpacking napi-v3/bcrypt_lib.node
+#12 124.5 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp info extracted file count: 1 
+#12 124.5 .../bcrypt@5.1.1/node_modules/bcrypt install: [bcrypt] Success: "/app/node_modules/.pnpm/bcrypt@5.1.1/node_modules/bcrypt/lib/binding/napi-v3/bcrypt_lib.node" is installed via remote
+#12 124.5 .../bcrypt@5.1.1/node_modules/bcrypt install: node-pre-gyp info ok 
+#12 124.6 .../bcrypt@5.1.1/node_modules/bcrypt install: Done
+#12 125.0 
+#12 125.0 devDependencies:
+#12 125.0 + @playwright/mcp 0.0.76
+#12 125.0 + @playwright/test 1.61.1
+#12 125.0 + prettier 3.8.4
+#12 125.0 + typescript 5.4.2
+#12 125.0 
+#12 126.4 Done in 1m 59.2s using pnpm v11.9.0
+#12 DONE 133.5s
+
+#13 [builder  8/11] COPY packages/shared/ packages/shared/
+#13 DONE 2.7s
+
+#14 [builder  9/11] COPY apps/server/ apps/server/
+#14 DONE 0.3s
+
+#15 [builder 10/11] RUN pnpm --filter @apix/shared build
+#15 10.40 $ tsc
+#15 10.59 node:internal/modules/cjs/loader:1433
+#15 10.59   throw err;
+#15 10.59   ^
+#15 10.59 
+#15 10.59 Error: Cannot find module '/app/packages/shared/node_modules/typescript/bin/tsc'
+#15 10.59     at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+#15 10.59     at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+#15 10.59     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+#15 10.59     at Function._load (node:internal/modules/cjs/loader:1216:25)
+#15 10.59     at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+#15 10.59     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#15 10.59     at node:internal/main/run_main_module:36:49 {
+#15 10.59   code: 'MODULE_NOT_FOUND',
+#15 10.59   requireStack: []
+#15 10.59 }
+#15 10.59 
+#15 10.59 Node.js v22.23.1
+#15 10.69 /app/packages/shared:
+#15 10.69 [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @apix/shared@0.0.0 build: `tsc`
+#15 10.69 Exit status 1
+#15 ERROR: process "/bin/sh -c pnpm --filter @apix/shared build" did not complete successfully: exit code: 1
+------
+ > [builder 10/11] RUN pnpm --filter @apix/shared build:
+10.59     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+10.59     at node:internal/main/run_main_module:36:49 {
+10.59   code: 'MODULE_NOT_FOUND',
+10.59   requireStack: []
+10.59 }
+10.59 
+10.59 Node.js v22.23.1
+10.69 /app/packages/shared:
+10.69 [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @apix/shared@0.0.0 build: `tsc`
+10.69 Exit status 1
+------
+Dockerfile:22
+
+--------------------
+
+  20 |     
+
+  21 |     # Build shared package and server
+
+  22 | >>> RUN pnpm --filter @apix/shared build
+
+  23 |     RUN pnpm --filter @apix/server build
+
+  24 |     
+
+--------------------
+
+failed to solve: process "/bin/sh -c pnpm --filter @apix/shared build" did not complete successfully: exit code: 1
+

@@ -1,0 +1,8 @@
+﻿node.exe : error: unknown command 'push'
+строка:1 знак:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error: unknown command 'push':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Did you mean push:pg?)

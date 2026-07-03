@@ -1,0 +1,9 @@
+﻿psql : ERROR:  column "name" does not exist
+строка:1 знак:36
++ ... _password"; psql -h localhost -p 5432 -U apix -d apix -c "SELECT id,  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ERROR:  column "name" does not exist:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+╤╥╨╬╩└ 1: SELECT id, name, email, role FROM staff;
+                  ^
