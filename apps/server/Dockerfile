@@ -35,6 +35,7 @@ COPY --from=builder /app/apps/server/package.json ./apps/server/package.json
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/apps/server/tsconfig.json ./apps/server/tsconfig.json
 COPY --from=builder /app/apps/server/drizzle.config.ts ./apps/server/drizzle.config.ts
+COPY --from=builder /app/apps/server/drizzle ./apps/server/drizzle
 COPY --from=builder /app/packages/shared/tsconfig.json ./packages/shared/tsconfig.json
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
@@ -43,7 +44,13 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
 
+# Fix pnpm symlink: replace symlink with real copy of @apix/shared
+# Docker COPY doesn't preserve symlinks in multi-stage builds
+RUN rm -rf /app/apps/server/node_modules/@apix/shared && \
+    mkdir -p /app/apps/server/node_modules/@apix && \
+    cp -r /app/packages/shared /app/apps/server/node_modules/@apix/shared && \
+    rm -rf /app/apps/server/node_modules/@apix/shared/src /app/apps/server/node_modules/@apix/shared/tsconfig.json
+
 EXPOSE 3001
 
-# Run DB migrations then start server
-CMD ["sh", "-c", "cd /app/apps/server && npx drizzle-kit push && npx tsx /app/apps/server/src/index.ts"]
+CMD ["sh", "-c", "cd /app/apps/server && npx tsx /app/apps/server/src/index.ts"]

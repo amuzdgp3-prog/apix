@@ -19,9 +19,16 @@ export class ApiError extends Error {
 }
 
 let refreshPromise: Promise<string | null> | null = null;
+let lastRefreshAttempt = 0;
 
 async function refreshAccessToken(): Promise<string | null> {
+  // Если уже идёт обновление — ждём его результат (предотвращает race condition)
   if (refreshPromise) return refreshPromise;
+
+  // Если последняя попытка была менее 5 секунд назад и завершилась неудачей — не пытаемся снова
+  if (lastRefreshAttempt > 0 && Date.now() - lastRefreshAttempt < 5000) {
+    return null;
+  }
 
   refreshPromise = (async () => {
     try {
@@ -29,12 +36,17 @@ async function refreshAccessToken(): Promise<string | null> {
         `${API_BASE}/auth/refresh`,
         { method: "POST", credentials: "same-origin" },
       );
-      if (!res.ok) return null;
+      if (!res.ok) {
+        lastRefreshAttempt = Date.now();
+        return null;
+      }
       const data = await res.json() as { accessToken?: string };
       const token = data.accessToken ?? null;
       if (token) localStorage.setItem("accessToken", token);
+      lastRefreshAttempt = 0; // успех — сбрасываем таймер
       return token;
     } catch {
+      lastRefreshAttempt = Date.now();
       return null;
     } finally {
       refreshPromise = null;
@@ -47,7 +59,11 @@ async function refreshAccessToken(): Promise<string | null> {
 async function request<T>(
   path: string,
   options: RequestOptions = {},
+  retryCount = 0,
 ): Promise<T> {
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 1000; // 1 сек
+
   const url = new URL(`${API_BASE}${path}`, window.location.origin);
   if (options.params) {
     Object.entries(options.params).forEach(([k, v]) =>
@@ -56,15 +72,25 @@ async function request<T>(
   }
 
   async function doFetch(token: string | null): Promise<T> {
-    const res = await fetch(url.toString(), {
-      ...options,
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+    let res: Response;
+    try {
+      res = await fetch(url.toString(), {
+        ...options,
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    } catch (networkError) {
+      // Network error — retry with exponential backoff
+      if (retryCount < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY * (retryCount + 1)));
+        return request<T>(path, options, retryCount + 1);
+      }
+      throw new ApiError(0, "Сетевая ошибка. Проверьте подключение.");
+    }
 
     if (res.status === 401) {
       const newToken = await refreshAccessToken();
@@ -95,6 +121,11 @@ async function request<T>(
     }
 
     if (!res.ok) {
+      // 5xx errors — retry
+      if (res.status >= 500 && retryCount < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY * (retryCount + 1)));
+        return request<T>(path, options, retryCount + 1);
+      }
       const body = await res.json().catch(() => ({}));
       throw new ApiError(
         res.status,

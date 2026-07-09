@@ -44,6 +44,14 @@ export const updateMachineType = (id: number, data: MachineTypeUpdate) =>
 export const deleteMachineType = (id: number) =>
   api.delete<void>(`/machine-types/${id}`);
 
+// ---- MachineType Toys (базовый набор игрушек типа) ----
+export const fetchMachineTypeToys = (typeId: number) =>
+  api.get<Toy[]>(`/machine-types/${typeId}/toys`);
+export const addMachineTypeToy = (typeId: number, toyId: number) =>
+  api.post<void>(`/machine-types/${typeId}/toys`, { toyId });
+export const removeMachineTypeToy = (typeId: number, toyId: number) =>
+  api.delete<void>(`/machine-types/${typeId}/toys/${toyId}`);
+
 // ---- Toys ----
 export const fetchToys = () => api.get<Toy[]>("/toys");
 export const createToy = (data: ToyCreate) =>

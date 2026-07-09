@@ -1,12 +1,25 @@
+import { useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
-import { Loader2, Package, Route, Users, History, QrCode, Camera } from "lucide-react"
+import { Loader2, Package, Route, Users, History, QrCode, Camera, Replace, Settings } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/api/client"
+import { fetchToys } from "@/api/directories"
+import { printMachineQR } from "@/utils/qrPrint"
 
 interface MachineToy { id: number; name: string; price: number }
 interface ServicePhotos { counter?: string | null; before?: string | null; after?: string | null }
@@ -26,10 +39,29 @@ interface MachineCardData {
   roiTrend: RoiPoint[]
 }
 
+interface MachineToyOverride { toyId: number; action: "add" | "remove" }
+
 export default function MachineCard() {
   const { number } = useParams<{ number: string }>()
   const num = Number(number)
   const queryClient = useQueryClient()
+
+  // Диалог замены аппарата
+  const [replaceOpen, setReplaceOpen] = useState(false)
+  const [newNumber, setNewNumber] = useState("")
+  const [gameCounter, setGameCounter] = useState("0")
+  const [prizeCounter, setPrizeCounter] = useState("0")
+  const [replacing, setReplacing] = useState(false)
+  const [replaceError, setReplaceError] = useState("")
+
+  // Диалог индивидуальных правок игрушек
+  const [toysEditOpen, setToysEditOpen] = useState(false)
+  const [overrides, setOverrides] = useState<MachineToyOverride[]>([])
+  const [allToysFull, setAllToysFull] = useState<MachineToy[]>([])
+  const [toysEditLoading, setToysEditLoading] = useState(false)
+  const [editAction, setEditAction] = useState<"add" | "remove">("add")
+  const [editToyId, setEditToyId] = useState<string>("")
+  const [editSaving, setEditSaving] = useState(false)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["machine", num],
@@ -44,6 +76,94 @@ export default function MachineCard() {
       .then(() => queryClient.invalidateQueries({ queryKey: ["machine", num] }))
       .catch(() => {})
   }
+
+  const handleReplace = async () => {
+    setReplaceError("")
+    const nn = Number(newNumber)
+    if (!nn || nn <= 0) {
+      setReplaceError("Введите корректный номер нового аппарата")
+      return
+    }
+    if (nn === num) {
+      setReplaceError("Новый номер должен отличаться от текущего")
+      return
+    }
+    setReplacing(true)
+    try {
+      await api.post(`/machines/${num}/replace`, {
+        newMachineNumber: nn,
+        gameCounterInitial: Number(gameCounter) || 0,
+        prizeCounterInitial: Number(prizeCounter) || 0,
+      })
+      setReplaceOpen(false)
+      setNewNumber("")
+      setGameCounter("0")
+      setPrizeCounter("0")
+      queryClient.invalidateQueries({ queryKey: ["machine", num] })
+      // Показать предупреждение о редиректе на новую карточку
+      setTimeout(() => {
+        window.location.href = `/admin/machines/${nn}`
+      }, 500)
+    } catch (err: any) {
+      setReplaceError(err?.message ?? err?.error ?? "Ошибка замены аппарата")
+    } finally {
+      setReplacing(false)
+    }
+  }
+
+  // Открыть диалог управления индивидуальными правками игрушек
+  const openToysEdit = async () => {
+    setToysEditOpen(true)
+    setToysEditLoading(true)
+    setEditToyId("")
+    setEditAction("add")
+    try {
+      const [ov, all] = await Promise.all([
+        api.get<MachineToyOverride[]>(`/machines/${num}/toys/overrides`),
+        fetchToys(),
+      ])
+      setOverrides(ov)
+      setAllToysFull(all)
+    } finally {
+      setToysEditLoading(false)
+    }
+  }
+
+  const handleToysEdit = async () => {
+    if (!editToyId) return
+    setEditSaving(true)
+    try {
+      await api.post(`/machines/${num}/toys`, {
+        toyId: Number(editToyId),
+        action: editAction,
+      })
+      // Перезагрузить overrides и данные машины
+      const [ov] = await Promise.all([
+        api.get<MachineToyOverride[]>(`/machines/${num}/toys/overrides`),
+        queryClient.invalidateQueries({ queryKey: ["machine", num] }),
+      ])
+      setOverrides(ov)
+      setEditToyId("")
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  // Доступные для добавления игрушки (ещё нет в computed наборе)
+  const availableToAdd = useMemo(() => {
+    if (!data) return []
+    return allToysFull.filter(t =>
+      !data.toys.some(dt => dt.id === t.id) &&
+      !overrides.some(o => o.toyId === t.id && o.action === "add")
+    )
+  }, [allToysFull, data, overrides])
+
+  // Игрушки, которые можно удалить (есть в computed, нет remove-правки)
+  const canRemoveToys = useMemo(() => {
+    if (!data) return []
+    const removeIds = new Set(overrides.filter(o => o.action === "remove").map(o => o.toyId))
+    return data.toys.filter(t => !removeIds.has(t.id))
+  }, [data, overrides])
 
   if (!num) {
     return (
@@ -84,6 +204,73 @@ export default function MachineCard() {
                 <Button variant="outline" size="sm" onClick={toggleStatus}>
                   {data.status === "active" ? "Деактивировать" : "Активировать"}
                 </Button>
+                <Dialog open={replaceOpen} onOpenChange={setReplaceOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Replace className="h-4 w-4 mr-1" />
+                      Заменить аппарат
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Замена аппарата на точке</DialogTitle>
+                      <DialogDescription>
+                        Текущий аппарат №{num} будет деактивирован, его настройки
+                        и привязки перенесены на новый. Цепочка обслуживаний
+                        текущего аппарата будет закрыта.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="newNumber">Номер нового аппарата</Label>
+                        <Input
+                          id="newNumber"
+                          type="number"
+                          min="1"
+                          value={newNumber}
+                          onChange={(e) => setNewNumber(e.target.value)}
+                          placeholder="Например: 12345"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gameCounter">Начальный счётчик игр</Label>
+                        <Input
+                          id="gameCounter"
+                          type="number"
+                          min="0"
+                          value={gameCounter}
+                          onChange={(e) => setGameCounter(e.target.value)}
+                        />
+                      </div>
+                      {data.hasPrizeCounter && (
+                        <div className="space-y-2">
+                          <Label htmlFor="prizeCounter">Начальный счётчик призов</Label>
+                          <Input
+                            id="prizeCounter"
+                            type="number"
+                            min="0"
+                            value={prizeCounter}
+                            onChange={(e) => setPrizeCounter(e.target.value)}
+                          />
+                        </div>
+                      )}
+                      {replaceError && (
+                        <p className="text-sm text-destructive">{replaceError}</p>
+                      )}
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setReplaceOpen(false)}>
+                        Отмена
+                      </Button>
+                      <Button onClick={handleReplace} disabled={replacing}>
+                        {replacing ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : null}
+                        Выполнить замену
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
@@ -126,6 +313,13 @@ export default function MachineCard() {
                 </TabsList>
 
                 <TabsContent value="toys" className="pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-muted-foreground">Базовый набор типа + индивидуальные правки</p>
+                    <Button variant="outline" size="sm" onClick={openToysEdit}>
+                      <Settings className="h-4 w-4 mr-1" />
+                      Настроить правки
+                    </Button>
+                  </div>
                   <Table>
                     <TableHeader><TableRow><TableHead>Название</TableHead><TableHead className="text-right">Цена</TableHead></TableRow></TableHeader>
                     <TableBody>
@@ -179,14 +373,125 @@ export default function MachineCard() {
                 </TabsContent>
 
                 <TabsContent value="qr" className="pt-4 flex flex-col items-center gap-3">
-                  <p className="text-sm text-muted-foreground">Сгенерировать PDF с QR-кодом для наклейки на аппарат</p>
-                  <Button onClick={() => window.open(`/api/machines/${data.number}/qr`, "_blank")}><QrCode className="h-4 w-4 mr-1" />Сгенерировать PDF</Button>
+                  <p className="text-sm text-muted-foreground">Напечатать QR-код для наклейки на аппарат. После сканирования техник откроется страница обслуживания.</p>
+                  <Button onClick={() => printMachineQR(data.number)}><QrCode className="h-4 w-4 mr-1" />Напечатать QR-код</Button>
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
         </>
       )}
+
+      {/* Диалог индивидуальных правок игрушек */}
+      <Dialog open={toysEditOpen} onOpenChange={setToysEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Индивидуальные правки игрушек</DialogTitle>
+            <DialogDescription>
+              Аппарат №{num}. Добавьте или удалите игрушки относительно базового набора типа.
+            </DialogDescription>
+          </DialogHeader>
+
+          {toysEditLoading ? (
+            <p className="text-muted-foreground text-center py-4">Загрузка...</p>
+          ) : (
+            <div className="space-y-4">
+              {/* Текущие правки */}
+              <div>
+                <p className="text-sm font-medium mb-2">Текущие правки:</p>
+                {overrides.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Нет индивидуальных правок</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {overrides.map((o) => {
+                      const toy = allToysFull.find(t => t.id === o.toyId)
+                      return (
+                        <Badge
+                          key={`${o.toyId}-${o.action}`}
+                          variant={o.action === "add" ? "success" : "destructive"}
+                          className="gap-1 pr-1"
+                        >
+                          {o.action === "add" ? "+" : "−"} {toy?.name ?? `ID ${o.toyId}`} ({toy?.price ?? 0} ₽)
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Добавить/удалить правку */}
+              <div>
+                <p className="text-sm font-medium mb-2">Добавить правку:</p>
+                <div className="flex gap-2 mb-2">
+                  <Button
+                    variant={editAction === "add" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => { setEditAction("add"); setEditToyId("") }}
+                  >
+                    Добавить игрушку
+                  </Button>
+                  <Button
+                    variant={editAction === "remove" ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={() => { setEditAction("remove"); setEditToyId("") }}
+                  >
+                    Убрать игрушку
+                  </Button>
+                </div>
+
+                {editAction === "add" && (
+                  <div className="flex gap-2">
+                    <Select value={editToyId} onValueChange={setEditToyId}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Выберите игрушку..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableToAdd.map(toy => (
+                          <SelectItem key={toy.id} value={String(toy.id)}>
+                            {toy.name} ({toy.price} ₽)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      disabled={!editToyId || editSaving}
+                      onClick={handleToysEdit}
+                    >
+                      {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Добавить"}
+                    </Button>
+                  </div>
+                )}
+
+                {editAction === "remove" && (
+                  <div className="flex gap-2">
+                    <Select value={editToyId} onValueChange={setEditToyId}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Выберите игрушку..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {canRemoveToys.map(toy => (
+                          <SelectItem key={toy.id} value={String(toy.id)}>
+                            {toy.name} ({toy.price} ₽)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={!editToyId || editSaving}
+                      onClick={handleToysEdit}
+                    >
+                      {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Убрать"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

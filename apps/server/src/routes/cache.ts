@@ -168,7 +168,7 @@ export async function cacheRoutes(app: FastifyInstance) {
         ORDER BY days_since_last_service DESC NULLS FIRST
       `);
 
-      const data = (rows as unknown as any[]).map((r: any) => ({
+      const data = (rows.rows as unknown as any[]).map((r: any) => ({
         number: r.number,
         locationName: r.location_name,
         lastServiceDate: r.last_service_date ?? null,

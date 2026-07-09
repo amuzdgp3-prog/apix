@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Camera,
@@ -9,6 +9,7 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle2,
+  QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +23,11 @@ import {
 } from "@/components/ui/card";
 import { db, type DraftService } from "@/store/db";
 import { uploadMultipart } from "@/api/client";
+import QrScanner from "@/components/QrScanner";
 import type { SyncResponse, PreviewResponse } from "@apix/shared";
 
 // ==========================================
-// Вспомогательные типы
+// ╨Т╤Б╨┐╨╛╨╝╨╛╨│╨░╤В╨╡╨╗╤М╨╜╤Л╨╡ ╤В╨╕╨┐╤Л
 // ==========================================
 
 type ToyEntry = {
@@ -42,7 +44,7 @@ type PreviewState =
   | { status: "error"; message: string };
 
 // ==========================================
-// Компонент
+// ╨Ъ╨╛╨╝╨┐╨╛╨╜╨╡╨╜╤В
 // ==========================================
 
 export default function ServiceForm() {
@@ -50,7 +52,7 @@ export default function ServiceForm() {
   const navigate = useNavigate();
   const machineNumber = Number(machineId ?? 0);
 
-  // Поля формы
+  // ╨Я╨╛╨╗╤П ╤Д╨╛╤А╨╝╤Л
   const [serviceDate, setServiceDate] = useState(
     () => new Date().toISOString().slice(0, 10),
   );
@@ -65,22 +67,22 @@ export default function ServiceForm() {
   const [comment, setComment] = useState("");
   const [toys, setToys] = useState<ToyEntry[]>([]);
 
-  // Фото (File-объекты)
+  // ╨д╨╛╤В╨╛ (File-╨╛╨▒╤К╨╡╨║╤В╤Л)
   const [photoBefore, setPhotoBefore] = useState<File | null>(null);
   const [photoAfter, setPhotoAfter] = useState<File | null>(null);
   const [photoCounter, setPhotoCounter] = useState<File | null>(null);
 
-  // Предпросмотр фото
+  // ╨Я╤А╨╡╨┤╨┐╤А╨╛╤Б╨╝╨╛╤В╤А ╤Д╨╛╤В╨╛
   const [photoBeforePreview, setPhotoBeforePreview] = useState<string | null>(null);
   const [photoAfterPreview, setPhotoAfterPreview] = useState<string | null>(null);
   const [photoCounterPreview, setPhotoCounterPreview] = useState<string | null>(null);
 
-  // Предварительный расчёт
+  // ╨Я╤А╨╡╨┤╨▓╨░╤А╨╕╤В╨╡╨╗╤М╨╜╤Л╨╣ ╤А╨░╤Б╤З╤С╤В
   const [preview, setPreview] = useState<PreviewState>({ status: "idle" });
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortController = useRef<AbortController | null>(null);
 
-  // Состояние отправки
+  // ╨б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╡ ╨╛╤В╨┐╤А╨░╨▓╨║╨╕
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitResult, setSubmitResult] = useState<{
@@ -91,8 +93,7 @@ export default function ServiceForm() {
     periodDays: number;
   } | null>(null);
 
-  // ==========================================
-  // Справочник игрушек (из IndexedDB)
+  // ╨б╨┐╤А╨░╨▓╨╛╤З╨╜╨╕╨║ ╨╕╨│╤А╤Г╤И╨╡╨║ (computed ╤Б ╤Б╨╡╤А╨▓╨╡╤А╨░: ╨▒╨░╨╖╨╛╨▓╤Л╨╣ ╨╜╨░╨▒╨╛╤А + ╨╕╨╜╨┤╨╕╨▓╨╕╨┤╤Г╨░╨╗╤М╨╜╤Л╨╡ ╨┐╤А╨░╨▓╨║╨╕)
   // ==========================================
 
   const [toyCatalog, setToyCatalog] = useState<
@@ -100,25 +101,23 @@ export default function ServiceForm() {
   >([]);
 
   useEffect(() => {
-    db.toys
-      .toArray()
-      .then((rows) =>
-        setToyCatalog(
-          rows.map((t) => ({
-            id: Number(t.id),
-            name: t.name,
-            price: Number(t.price ?? 0),
-          })),
-        ),
+    if (!machineNumber) return;
+    fetch(`/api/machines/${machineNumber}/toys`)
+      .then((res) => res.json())
+      .then((rows: Array<{ id: number; name: string; price: number }>) =>
+        setToyCatalog(rows),
       )
       .catch(() => {});
-  }, []);
+  }, [machineNumber]);
 
   // ==========================================
-  // Адрес машины для черновика
+  // ╨Р╨┤╤А╨╡╤Б ╨╝╨░╤И╨╕╨╜╤Л ╨┤╨╗╤П ╤З╨╡╤А╨╜╨╛╨▓╨╕╨║╨░
   // ==========================================
 
   const [machineAddress, setMachineAddress] = useState("");
+
+  // QR-сканер
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
     if (!machineNumber) return;
@@ -145,7 +144,7 @@ export default function ServiceForm() {
   }, [machineNumber]);
 
   // ==========================================
-  // Предварительный расчёт (debounced)
+  // ╨Я╤А╨╡╨┤╨▓╨░╤А╨╕╤В╨╡╨╗╤М╨╜╤Л╨╣ ╤А╨░╤Б╤З╤С╤В (debounced)
   // ==========================================
 
   const requestPreview = useCallback(() => {
@@ -212,7 +211,7 @@ export default function ServiceForm() {
   }, [requestPreview]);
 
   // ==========================================
-  // Управление игрушками
+  // ╨г╨┐╤А╨░╨▓╨╗╨╡╨╜╨╕╨╡ ╨╕╨│╤А╤Г╤И╨║╨░╨╝╨╕
   // ==========================================
 
   const addToy = (toy: (typeof toyCatalog)[0]) => {
@@ -249,7 +248,7 @@ export default function ServiceForm() {
   };
 
   // ==========================================
-  // Загрузка фото
+  // ╨Ч╨░╨│╤А╤Г╨╖╨║╨░ ╤Д╨╛╤В╨╛
   // ==========================================
 
   const handlePhoto = (
@@ -267,7 +266,7 @@ export default function ServiceForm() {
   };
 
   // ==========================================
-  // Сохранение черновика
+  // ╨б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╡ ╤З╨╡╤А╨╜╨╛╨▓╨╕╨║╨░
   // ==========================================
 
   const handleSaveDraft = async () => {
@@ -299,14 +298,14 @@ export default function ServiceForm() {
     } catch (err) {
       setSubmitError(
         err instanceof Error
-          ? `Ошибка сохранения черновика: ${err.message}`
-          : "Не удалось сохранить черновик",
+          ? `╨Ю╤И╨╕╨▒╨║╨░ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╤П ╤З╨╡╤А╨╜╨╛╨▓╨╕╨║╨░: ${err.message}`
+          : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╤З╨╡╤А╨╜╨╛╨▓╨╕╨║",
       );
     }
   };
 
   // ==========================================
-  // Отправка на сервер
+  // ╨Ю╤В╨┐╤А╨░╨▓╨║╨░ ╨╜╨░ ╤Б╨╡╤А╨▓╨╡╤А
   // ==========================================
 
   const handleSubmit = async () => {
@@ -354,12 +353,12 @@ export default function ServiceForm() {
         const messages = response.errors
           .map((e) => `${e.field}: ${e.message}`)
           .join("; ");
-        setSubmitError(messages || "Ошибка синхронизации");
+        setSubmitError(messages || "╨Ю╤И╨╕╨▒╨║╨░ ╤Б╨╕╨╜╤Е╤А╨╛╨╜╨╕╨╖╨░╤Ж╨╕╨╕");
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setSubmitError(
-        err instanceof Error ? err.message : "Ошибка отправки данных",
+        err instanceof Error ? err.message : "╨Ю╤И╨╕╨▒╨║╨░ ╨╛╤В╨┐╤А╨░╨▓╨║╨╕ ╨┤╨░╨╜╨╜╤Л╤Е",
       );
     } finally {
       setSubmitting(false);
@@ -367,7 +366,7 @@ export default function ServiceForm() {
   };
 
   // ==========================================
-  // Вычисление сумм
+  // ╨Т╤Л╤З╨╕╤Б╨╗╨╡╨╜╨╕╨╡ ╤Б╤Г╨╝╨╝
   // ==========================================
 
   const toysCost = toys.reduce((sum, t) => sum + t.quantity * t.price, 0);
@@ -381,7 +380,7 @@ export default function ServiceForm() {
     preview.status === "ready" ? preview.data.periodDays : null;
 
   // ==========================================
-  // Экран успеха
+  // ╨н╨║╤А╨░╨╜ ╤Г╤Б╨┐╨╡╤Е╨░
   // ==========================================
 
   if (submitResult) {
@@ -391,21 +390,21 @@ export default function ServiceForm() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="h-6 w-6" />
-              Обслуживание сохранено
+              ╨Ю╨▒╤Б╨╗╤Г╨╢╨╕╨▓╨░╨╜╨╕╨╡ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╛
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <p>
-              <span className="text-muted-foreground">Номер записи:</span>{" "}
+              <span className="text-muted-foreground">╨Э╨╛╨╝╨╡╤А ╨╖╨░╨┐╨╕╤Б╨╕:</span>{" "}
               <span className="font-mono">{submitResult.recordId}</span>
             </p>
             <p>
-              <span className="text-muted-foreground">Новых игр:</span>{" "}
+              <span className="text-muted-foreground">╨Э╨╛╨▓╤Л╤Е ╨╕╨│╤А:</span>{" "}
               {submitResult.newGames}
             </p>
             <p>
-              <span className="text-muted-foreground">Выручка:</span>{" "}
-              {submitResult.revenue.toFixed(2)} ₽
+              <span className="text-muted-foreground">╨Т╤Л╤А╤Г╤З╨║╨░:</span>{" "}
+              {submitResult.revenue.toFixed(2)} тВ╜
             </p>
             {submitResult.roi !== null && (
               <p>
@@ -414,15 +413,15 @@ export default function ServiceForm() {
               </p>
             )}
             <p>
-              <span className="text-muted-foreground">Период:</span>{" "}
-              {submitResult.periodDays} дн.
+              <span className="text-muted-foreground">╨Я╨╡╤А╨╕╨╛╨┤:</span>{" "}
+              {submitResult.periodDays} ╨┤╨╜.
             </p>
           </CardContent>
         </Card>
 
         <div className="flex gap-4">
           <Button variant="outline" onClick={() => navigate("/machines")}>
-            К списку машин
+            ╨Ъ ╤Б╨┐╨╕╤Б╨║╤Г ╨╝╨░╤И╨╕╨╜
           </Button>
           <Button
             onClick={() => {
@@ -440,7 +439,7 @@ export default function ServiceForm() {
               setPreview({ status: "idle" });
             }}
           >
-            Новое обслуживание
+            ╨Э╨╛╨▓╨╛╨╡ ╨╛╨▒╤Б╨╗╤Г╨╢╨╕╨▓╨░╨╜╨╕╨╡
           </Button>
         </div>
       </div>
@@ -448,17 +447,17 @@ export default function ServiceForm() {
   }
 
   // ==========================================
-  // Основная форма
+  // ╨Ю╤Б╨╜╨╛╨▓╨╜╨░╤П ╤Д╨╛╤А╨╝╨░
   // ==========================================
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Шапка */}
+      {/* ╨и╨░╨┐╨║╨░ */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">
             Обслуживание №{machineId}
           </h1>
@@ -466,16 +465,24 @@ export default function ServiceForm() {
             <p className="text-muted-foreground">{machineAddress}</p>
           )}
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setScannerOpen(true)}
+          title="Сканировать QR-код"
+        >
+          <QrCode className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Дата и время */}
+      {/* ╨Ф╨░╤В╨░ ╨╕ ╨▓╤А╨╡╨╝╤П */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Дата и время</CardTitle>
+          <CardTitle className="text-lg">╨Ф╨░╤В╨░ ╨╕ ╨▓╤А╨╡╨╝╤П</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="serviceDate">Дата</Label>
+            <Label htmlFor="serviceDate">╨Ф╨░╤В╨░</Label>
             <Input
               id="serviceDate"
               type="date"
@@ -484,7 +491,7 @@ export default function ServiceForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="serviceTime">Время</Label>
+            <Label htmlFor="serviceTime">╨Т╤А╨╡╨╝╤П</Label>
             <Input
               id="serviceTime"
               type="time"
@@ -495,14 +502,14 @@ export default function ServiceForm() {
         </CardContent>
       </Card>
 
-      {/* Счётчики */}
+      {/* ╨б╤З╤С╤В╤З╨╕╨║╨╕ */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Счётчики автомата</CardTitle>
+          <CardTitle className="text-lg">╨б╤З╤С╤В╤З╨╕╨║╨╕ ╨░╨▓╤В╨╛╨╝╨░╤В╨░</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="gameCounter">Счётчик игр</Label>
+            <Label htmlFor="gameCounter">╨б╤З╤С╤В╤З╨╕╨║ ╨╕╨│╤А</Label>
             <Input
               id="gameCounter"
               type="number"
@@ -512,7 +519,7 @@ export default function ServiceForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="prizeCounter">Счётчик призов</Label>
+            <Label htmlFor="prizeCounter">╨б╤З╤С╤В╤З╨╕╨║ ╨┐╤А╨╕╨╖╨╛╨▓</Label>
             <Input
               id="prizeCounter"
               type="number"
@@ -522,7 +529,7 @@ export default function ServiceForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="testGames">Тестовых игр</Label>
+            <Label htmlFor="testGames">╨в╨╡╤Б╤В╨╛╨▓╤Л╤Е ╨╕╨│╤А</Label>
             <Input
               id="testGames"
               type="number"
@@ -534,14 +541,14 @@ export default function ServiceForm() {
         </CardContent>
       </Card>
 
-      {/* Состояние */}
+      {/* ╨б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╡ */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Состояние автомата</CardTitle>
+          <CardTitle className="text-lg">╨б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╡ ╨░╨▓╤В╨╛╨╝╨░╤В╨░</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
-            <Label htmlFor="operational">Работает</Label>
+            <Label htmlFor="operational">╨а╨░╨▒╨╛╤В╨░╨╡╤В</Label>
             <input
               id="operational"
               type="checkbox"
@@ -553,10 +560,10 @@ export default function ServiceForm() {
         </CardContent>
       </Card>
 
-      {/* Игрушки */}
+      {/* ╨Ш╨│╤А╤Г╤И╨║╨╕ */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Выдача игрушек</CardTitle>
+          <CardTitle className="text-lg">╨Т╤Л╨┤╨░╤З╨░ ╨╕╨│╤А╤Г╤И╨╡╨║</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {toys.length > 0 && (
@@ -567,7 +574,7 @@ export default function ServiceForm() {
                   className="flex items-center gap-2 border rounded-md p-2"
                 >
                   <span className="flex-1 text-sm">
-                    {toy.name} ({toy.price.toFixed(2)}₽)
+                    {toy.name} ({toy.price.toFixed(2)}тВ╜)
                   </span>
                   <Input
                     type="number"
@@ -611,21 +618,21 @@ export default function ServiceForm() {
 
           {toys.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              Итого игрушек: {toysCost.toFixed(2)}₽
+              ╨Ш╤В╨╛╨│╨╛ ╨╕╨│╤А╤Г╤И╨╡╨║: {toysCost.toFixed(2)}тВ╜
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Фото */}
+      {/* ╨д╨╛╤В╨╛ */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Фотоотчёт</CardTitle>
+          <CardTitle className="text-lg">╨д╨╛╤В╨╛╨╛╤В╤З╤С╤В</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Фото ДО */}
+          {/* ╨д╨╛╤В╨╛ ╨Ф╨Ю */}
           <div className="space-y-2">
-            <Label>До</Label>
+            <Label>╨Ф╨╛</Label>
             <div className="border-2 border-dashed rounded-lg p-4 text-center">
               <input
                 type="file"
@@ -645,22 +652,22 @@ export default function ServiceForm() {
                 {photoBeforePreview ? (
                   <img
                     src={photoBeforePreview}
-                    alt="Фото ДО"
+                    alt="╨д╨╛╤В╨╛ ╨Ф╨Ю"
                     className="max-h-32 mx-auto rounded"
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-muted-foreground">
                     <Camera className="h-6 w-6" />
-                    <span className="text-xs">Добавить фото</span>
+                    <span className="text-xs">╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М ╤Д╨╛╤В╨╛</span>
                   </div>
                 )}
               </label>
             </div>
           </div>
 
-          {/* Фото ПОСЛЕ */}
+          {/* ╨д╨╛╤В╨╛ ╨Я╨Ю╨б╨Ы╨Х */}
           <div className="space-y-2">
-            <Label>После</Label>
+            <Label>╨Я╨╛╤Б╨╗╨╡</Label>
             <div className="border-2 border-dashed rounded-lg p-4 text-center">
               <input
                 type="file"
@@ -680,22 +687,22 @@ export default function ServiceForm() {
                 {photoAfterPreview ? (
                   <img
                     src={photoAfterPreview}
-                    alt="Фото ПОСЛЕ"
+                    alt="╨д╨╛╤В╨╛ ╨Я╨Ю╨б╨Ы╨Х"
                     className="max-h-32 mx-auto rounded"
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-muted-foreground">
                     <Camera className="h-6 w-6" />
-                    <span className="text-xs">Добавить фото</span>
+                    <span className="text-xs">╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М ╤Д╨╛╤В╨╛</span>
                   </div>
                 )}
               </label>
             </div>
           </div>
 
-          {/* Фото счётчика */}
+          {/* ╨д╨╛╤В╨╛ ╤Б╤З╤С╤В╤З╨╕╨║╨░ */}
           <div className="space-y-2">
-            <Label>Счётчик</Label>
+            <Label>╨б╤З╤С╤В╤З╨╕╨║</Label>
             <div className="border-2 border-dashed rounded-lg p-4 text-center">
               <input
                 type="file"
@@ -715,13 +722,13 @@ export default function ServiceForm() {
                 {photoCounterPreview ? (
                   <img
                     src={photoCounterPreview}
-                    alt="Фото счётчика"
+                    alt="╨д╨╛╤В╨╛ ╤Б╤З╤С╤В╤З╨╕╨║╨░"
                     className="max-h-32 mx-auto rounded"
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-muted-foreground">
                     <Camera className="h-6 w-6" />
-                    <span className="text-xs">Добавить фото</span>
+                    <span className="text-xs">╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М ╤Д╨╛╤В╨╛</span>
                   </div>
                 )}
               </label>
@@ -730,14 +737,14 @@ export default function ServiceForm() {
         </CardContent>
       </Card>
 
-      {/* Комментарий */}
+      {/* ╨Ъ╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣ */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Комментарий</CardTitle>
+          <CardTitle className="text-lg">╨Ъ╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣</CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea
-            placeholder="Заметки о состоянии автомата..."
+            placeholder="╨Ч╨░╨╝╨╡╤В╨║╨╕ ╨╛ ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╕ ╨░╨▓╤В╨╛╨╝╨░╤В╨░..."
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
@@ -745,13 +752,13 @@ export default function ServiceForm() {
         </CardContent>
       </Card>
 
-      {/* Предварительный расчёт */}
+      {/* ╨Я╤А╨╡╨┤╨▓╨░╤А╨╕╤В╨╡╨╗╤М╨╜╤Л╨╣ ╤А╨░╤Б╤З╤С╤В */}
       {preview.status === "loading" && (
         <Card>
           <CardContent className="flex items-center gap-2 py-4">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span className="text-sm text-muted-foreground">
-              Расчёт показателей...
+              ╨а╨░╤Б╤З╤С╤В ╨┐╨╛╨║╨░╨╖╨░╤В╨╡╨╗╨╡╨╣...
             </span>
           </CardContent>
         </Card>
@@ -760,26 +767,26 @@ export default function ServiceForm() {
       {preview.status === "ready" && (
         <Card className="bg-muted/50">
           <CardHeader>
-            <CardTitle className="text-base">Предварительный расчёт</CardTitle>
+            <CardTitle className="text-base">╨Я╤А╨╡╨┤╨▓╨░╤А╨╕╤В╨╡╨╗╤М╨╜╤Л╨╣ ╤А╨░╤Б╤З╤С╤В</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-2 text-sm">
             {previewNewGames !== null && (
               <>
-                <span className="text-muted-foreground">Новых игр:</span>
+                <span className="text-muted-foreground">╨Э╨╛╨▓╤Л╤Е ╨╕╨│╤А:</span>
                 <span className="font-mono">{previewNewGames}</span>
               </>
             )}
             {previewPeriodDays !== null && (
               <>
-                <span className="text-muted-foreground">Период:</span>
-                <span className="font-mono">{previewPeriodDays} дн.</span>
+                <span className="text-muted-foreground">╨Я╨╡╤А╨╕╨╛╨┤:</span>
+                <span className="font-mono">{previewPeriodDays} ╨┤╨╜.</span>
               </>
             )}
             {previewRevenue !== null && (
               <>
-                <span className="text-muted-foreground">Выручка:</span>
+                <span className="text-muted-foreground">╨Т╤Л╤А╤Г╤З╨║╨░:</span>
                 <span className="font-mono">
-                  {previewRevenue.toFixed(2)} ₽
+                  {previewRevenue.toFixed(2)} тВ╜
                 </span>
               </>
             )}
@@ -804,7 +811,7 @@ export default function ServiceForm() {
         </Card>
       )}
 
-      {/* Ошибка отправки */}
+      {/* ╨Ю╤И╨╕╨▒╨║╨░ ╨╛╤В╨┐╤А╨░╨▓╨║╨╕ */}
       {submitError && (
         <Card className="border-red-300 bg-red-50">
           <CardContent className="flex items-center gap-2 py-4">
@@ -814,7 +821,7 @@ export default function ServiceForm() {
         </Card>
       )}
 
-      {/* Кнопки */}
+      {/* ╨Ъ╨╜╨╛╨┐╨║╨╕ */}
       <div className="flex gap-4">
         <Button
           type="button"
@@ -825,12 +832,12 @@ export default function ServiceForm() {
           {submitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Отправка...
+              ╨Ю╤В╨┐╤А╨░╨▓╨║╨░...
             </>
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Отправить
+              ╨Ю╤В╨┐╤А╨░╨▓╨╕╤В╤М
             </>
           )}
         </Button>
@@ -841,9 +848,20 @@ export default function ServiceForm() {
           disabled={submitting}
         >
           <Save className="mr-2 h-4 w-4" />
-          Черновик
+          ╨з╨╡╤А╨╜╨╛╨▓╨╕╨║
         </Button>
       </div>
+
+      {/* QR-сканер */}
+      {scannerOpen && (
+        <QrScanner
+          onScan={(number) => {
+            setScannerOpen(false);
+            navigate(`/machines/${number}`, { replace: true });
+          }}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
     </div>
   );
 }

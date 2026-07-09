@@ -87,12 +87,12 @@ export default function Reports() {
   })
 
   // Список городов для фильтра
-    const { data: locData } = useQuery({
+    const { data: cities = [] } = useQuery<LocationItem[]>({
       queryKey: ["locations"],
-      queryFn: () => api.get<{ data: LocationItem[] }>("/locations"),
+      queryFn: () => api.get<LocationItem[]>("/locations"),
       staleTime: 5 * 60 * 1000,
+      select: (data) => (Array.isArray(data) ? data : []).filter((l) => l.name),
     })
-    const cities = ((locData as { data: LocationItem[] } | undefined)?.data ?? []).filter((l: LocationItem) => l.name)
 
   const rows = revData?.data ?? []
   const summary = revData?.summary ?? { totalRevenue: 0, totalCostOfToys: 0, totalProfit: 0, overallRoi: null }

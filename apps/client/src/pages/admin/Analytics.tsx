@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -10,6 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DollarSign,
   MapPin,
@@ -84,10 +91,25 @@ const tooltipLabelFormatter = (_: string, payload: any[]) => {
 
 export default function Analytics() {
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
+  const [year, setYear] = useState<string>(String(new Date().getFullYear()));
+  const [month, setMonth] = useState<string>("");
+
+  const dateParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (month) {
+      const lastDay = new Date(Number(year), Number(month), 0).getDate();
+      p.dateFrom = `${year}-${month}-01`;
+      p.dateTo = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+    } else {
+      p.dateFrom = `${year}-01-01`;
+      p.dateTo = `${year}-12-31`;
+    }
+    return p;
+  }, [year, month]);
 
   const { data, isLoading } = useQuery<AnalyticsResponse>({
-    queryKey: ["reports", "analytics"],
-    queryFn: () => api.get<AnalyticsResponse>("/reports/analytics"),
+    queryKey: ["reports", "analytics", year, month],
+    queryFn: () => api.get<AnalyticsResponse>("/reports/analytics", { params: dateParams }),
   });
 
   const summary = data?.summary ?? {
@@ -131,19 +153,44 @@ export default function Analytics() {
             Сравнительный анализ по маршрутам, техникам и типам машин
           </p>
         </div>
-        <Tabs
-          value={viewMode}
-          onValueChange={(v) => setViewMode(v as "table" | "chart")}
-        >
-          <TabsList>
-            <TabsTrigger value="table" className="gap-1">
-              <Table2 className="h-3.5 w-3.5" /> Таблица
-            </TabsTrigger>
-            <TabsTrigger value="chart" className="gap-1">
-              <BarChart4 className="h-3.5 w-3.5" /> Графики
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={month} onValueChange={(v) => setMonth(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Все месяцы" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все месяцы</SelectItem>
+              {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m) => (
+                <SelectItem key={m} value={m}>
+                  {new Date(Number(year), Number(m) - 1, 1).toLocaleString("ru", { month: "long" })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Tabs
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as "table" | "chart")}
+          >
+            <TabsList>
+              <TabsTrigger value="table" className="gap-1">
+                <Table2 className="h-3.5 w-3.5" /> Таблица
+              </TabsTrigger>
+              <TabsTrigger value="chart" className="gap-1">
+                <BarChart4 className="h-3.5 w-3.5" /> Графики
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">

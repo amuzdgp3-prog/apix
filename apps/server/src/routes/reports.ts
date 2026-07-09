@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { eq, isNull, and, desc, sql, gte, lte } from "drizzle-orm";
 import { zSchema } from "../utils/zod-json-schema.js";
+import { authenticate } from "../plugins/auth.js";
 import { db } from "../db/index.js";
 import { machines } from "../db/schema/machines.js";
 import { machinePlacements } from "../db/schema/placements.js";
@@ -9,7 +10,7 @@ import { service } from "../db/schema/services.js";
 import { locations } from "../db/schema/locations.js";
 import { machineTypes } from "../db/schema/machine-types.js";
 import { staff } from "../db/schema/staff.js";
-import { authenticate } from "../plugins/auth.js";
+import ExcelJS from "exceljs";
 
 const tags = ["Reports"];
 
@@ -329,7 +330,7 @@ export async function reportRoutes(app: FastifyInstance) {
           z.strictObject({
             dateFrom: z.string().optional(),
             dateTo: z.string().optional(),
-            format: z.enum(["csv", "json"]).optional(),
+            format: z.enum(["csv", "json", "xlsx"]).optional(),
           }),
         ),
       } as any,
@@ -373,6 +374,101 @@ export async function reportRoutes(app: FastifyInstance) {
         technician: r.sf,
         gameCounter: r.gc,
       }));
+
+      if (format === "xlsx") {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = "Apix Slot Manager";
+        workbook.created = new Date();
+
+        const sheet = workbook.addWorksheet("Отчёт");
+
+        // Заголовки
+        sheet.columns = [
+          { header: "Дата", key: "date", width: 12 },
+          { header: "Аппарат №", key: "machine", width: 12 },
+          { header: "Точка", key: "location", width: 20 },
+          { header: "Тип", key: "type", width: 18 },
+          { header: "Выручка (₽)", key: "revenue", width: 14 },
+          { header: "Себестоимость (₽)", key: "cost", width: 18 },
+          { header: "Прибыль (₽)", key: "profit", width: 14 },
+          { header: "ROI", key: "roi", width: 10 },
+          { header: "Техник", key: "technician", width: 24 },
+          { header: "Счётчик игр", key: "gameCounter", width: 14 },
+        ];
+
+        // Стиль заголовков
+        const headerRow = sheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        headerRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF1E293B" },
+        };
+        headerRow.alignment = { horizontal: "center", vertical: "middle" };
+        headerRow.height = 24;
+
+        // Данные
+        data.forEach((d) => {
+          sheet.addRow({
+            date: d.date,
+            machine: d.machine,
+            location: d.location,
+            type: d.type,
+            revenue: d.revenue,
+            cost: d.cost,
+            profit: d.profit,
+            roi: d.roi !== null ? Number(d.roi.toFixed(2)) : "",
+            technician: d.technician,
+            gameCounter: d.gameCounter,
+          });
+        });
+
+        // Чередование строк
+        sheet.eachRow((row, rowNumber) => {
+          if (rowNumber > 1) {
+            if (rowNumber % 2 === 0) {
+              row.eachCell((cell) => {
+                cell.fill = {
+                  type: "pattern",
+                  pattern: "solid",
+                  fgColor: { argb: "FFF1F5F9" },
+                };
+              });
+            }
+          }
+        });
+
+        // Итоговая строка
+        const totalRow = sheet.addRow({
+          date: "ИТОГО",
+          machine: "",
+          location: "",
+          type: "",
+          revenue: data.reduce((s, d) => s + d.revenue, 0),
+          cost: data.reduce((s, d) => s + d.cost, 0),
+          profit: data.reduce((s, d) => s + d.profit, 0),
+          roi: "",
+          technician: `Записей: ${data.length}`,
+          gameCounter: "",
+        });
+        totalRow.font = { bold: true };
+        totalRow.getCell("revenue").numFmt = "#,##0.00";
+        totalRow.getCell("cost").numFmt = "#,##0.00";
+        totalRow.getCell("profit").numFmt = "#,##0.00";
+
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        return reply
+          .header(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          )
+          .header(
+            "Content-Disposition",
+            `attachment; filename=report_${new Date().toISOString().split("T")[0]}.xlsx`,
+          )
+          .send(Buffer.from(buffer));
+      }
 
       if (format === "csv") {
         const headers = "date,machine,location,type,revenue,cost,profit,roi,technician,gameCounter";

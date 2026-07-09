@@ -1,9 +1,19 @@
 # Текущий контекст работы — Apix (Slot Manager)
 
-**Дата последнего обновления:** 03.07.2026, 20:07 MSK
+**Дата последнего обновления:** 08.07.2026, 23:48 MSK
 
 ## Текущий фокус
-🚀 **Этап 6: Деплой на VDS** — идёт отладка Docker-сборки на VDS
+Реализация нереализованного функционала по результатам сверки с ТЗ (08.07.2026):
+- ✅ Исправлены TypeScript ошибки в machines.ts (serial_number: number → string)
+- ✅ Реализована замена аппарата (POST /api/machines/:number/replace + UI в MachineCard)
+- ✅ Баннер забытых аппаратов в Layout (useForgottenMachines)
+- ✅ Экспорт XLSX через exceljs с форматированием
+- ✅ Двухуровневое наследование игрушек: сервер (machine_type_toys + machine_toys) + клиент (ServiceForm, MachineTypes, MachineCard) — 09.07.2026
+- ✅ TypeScript: 0 ошибок (сервер + клиент)
+
+Осталось:
+1. QR-код (эндпоинт + сканирование в ServiceForm + qrPrint.ts)
+2. SSL-сертификаты + финальный деплой
 
 ## VDS Сервер (куплен 03.07.2026)
 - Тариф: Turbo 4
@@ -28,10 +38,23 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/apps/server/node_modules/
 ```
 **Причина:** pnpm workspace создаёт symlink `node_modules/@apix/shared → ../../packages/shared`. При копировании `node_modules` в production stage Dockerfile пакет `packages/shared` копируется только как `src`, но не как `dist`, поэтому symlink ведёт в никуда.
 
-Задача для новой сессии — добавить в Dockerfile сервера копирование `packages/shared` целиком (src + dist) в production stage.
+### Текущие задачи (приоритет)
+- [x] ✅ Замена аппарата на точке (MachineCard + серверный эндпоинт) — 08.07.2026
+- [ ] QR-код: эндпоинт `/api/machines/:number/qr` + интеграция qrPrint.ts + сканирование в ServiceForm
+- [x] ✅ Баннер забытых аппаратов: useForgottenMachines в Layout — 08.07.2026
+- [x] ✅ Экспорт в Excel: XLSX через exceljs — 08.07.2026
+- [x] ✅ Двухуровневое наследование игрушек: тип → базовый набор → индивидуальные правки — 09.07.2026
+- [ ] SSL-сертификаты (Let's Encrypt)
+- [ ] Финальный деплой (`git push origin main`)
 
 ### Файлы для работы
-- `apps/server/Dockerfile` — нужно исправить (добавить COPY --from=builder /app/packages/shared ./packages/shared)
+- `apps/server/Dockerfile` — ✅ исправлен (packages/shared копируется целиком)
+- `apps/server/src/routes/machines.ts` — добавить эндпоинт замены аппарата + QR
+- `apps/client/src/pages/admin/MachineCard.tsx` — добавить замену аппарата
+- `apps/client/src/pages/technician/ServiceForm.tsx` — добавить QR-сканирование
+- `apps/client/src/components/Header.tsx` — подключить useForgottenMachines
+- `apps/server/src/routes/reports.ts` — добавить XLSX экспорт
+- `apps/client/src/pages/admin/Analytics.tsx` — добавить кнопки экспорта
 - `docker-compose.yml` — ок
 - `nginx.conf` — ок
 - `.env.production` — ок
