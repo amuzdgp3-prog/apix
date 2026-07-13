@@ -8,6 +8,7 @@ import {
   BarChart3,
   PieChart,
   ScrollText,
+  Activity,
   Cpu,
   ToyBrick,
   Users,
@@ -16,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -23,6 +25,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
+  const { isAdmin } = useAuth();
   return (
     <>
       {/* Overlay for mobile */}
@@ -56,21 +59,26 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             <NavItem to="/forgotten" icon={Archive}>Забытые</NavItem>
           </Section>
 
-          <Section title="Администратор">
-            <NavItem to="/admin" icon={LayoutDashboard}>Панель</NavItem>
-            <NavItem to="/admin/services" icon={Wrench}>Обслуживания</NavItem>
-            <NavItem to="/admin/reports" icon={BarChart3}>Отчёты</NavItem>
-            <NavItem to="/admin/analytics" icon={PieChart}>Аналитика</NavItem>
-            <NavItem to="/admin/audit" icon={ScrollText}>Аудит</NavItem>
-          </Section>
+          {isAdmin && (
+            <>
+              <Section title="Администратор">
+                <NavItem to="/admin" icon={LayoutDashboard}>Панель</NavItem>
+                <NavItem to="/admin/services" icon={Wrench}>Обслуживания</NavItem>
+                <NavItem to="/admin/reports" icon={BarChart3}>Отчёты</NavItem>
+                <NavItem to="/admin/analytics" icon={PieChart}>Аналитика</NavItem>
+                <NavItem to="/admin/audit" icon={ScrollText}>Аудит</NavItem>
+                <NavItem to="/admin/monitoring" icon={Activity}>Мониторинг</NavItem>
+              </Section>
 
-          <Section title="Справочники">
-            <NavItem to="/admin/machine-types" icon={Cpu}>Типы автоматов</NavItem>
-            <NavItem to="/admin/toys" icon={ToyBrick}>Игрушки</NavItem>
-            <NavItem to="/admin/staff" icon={Users}>Сотрудники</NavItem>
-            <NavItem to="/admin/locations" icon={MapPin}>Точки</NavItem>
-            <NavItem to="/admin/routes" icon={Route}>Маршруты</NavItem>
-          </Section>
+              <Section title="Справочники">
+                <NavItem to="/admin/machine-types" icon={Cpu}>Типы автоматов</NavItem>
+                <NavItem to="/admin/toys" icon={ToyBrick}>Игрушки</NavItem>
+                <NavItem to="/admin/staff" icon={Users}>Сотрудники</NavItem>
+                <NavItem to="/admin/locations" icon={MapPin}>Точки</NavItem>
+                <NavItem to="/admin/routes" icon={Route}>Маршруты</NavItem>
+              </Section>
+            </>
+          )}
         </nav>
       </aside>
     </>

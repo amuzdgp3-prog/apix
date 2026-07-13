@@ -18,10 +18,15 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared/ packages/shared/
 COPY apps/client/ apps/client/
 
+# Re-install to fix workspace symlinks after copying sources
+RUN pnpm install --frozen-lockfile
+
 # Build shared package and client
-RUN pnpm --filter @apix/shared build
-RUN pnpm --filter @apix/client build
+RUN cd packages/shared && npx tsc
+RUN cd apps/client && npx vite build
 
 # ---- Result: built files are in apps/client/dist ----
 FROM busybox:latest
 COPY --from=builder /app/apps/client/dist /dist
+# Fix permissions: nginx needs read access (UID 101), Vite may create assets/ with 0700
+RUN chmod -R 755 /dist && chmod -R a+r /dist

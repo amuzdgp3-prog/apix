@@ -20,7 +20,7 @@ function generateAccessToken(user: { id: number; role: string; cityId: number | 
   return jwt.sign(
     { sub: user.id, role: user.role, cityId: user.cityId },
     config.JWT_SECRET,
-    { expiresIn: "24h" },
+    { expiresIn: "1h" },
   );
 }
 
@@ -170,7 +170,7 @@ export async function authRoutes(app: FastifyInstance) {
     },
   );
 
-  /** POST /api/auth/logout */
+    /** POST /api/auth/logout */
   app.post(
     "/api/auth/logout",
     {
@@ -179,8 +179,50 @@ export async function authRoutes(app: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
+      const token = request.cookies?.refreshToken;
+      if (token) {
+        const tokenHash = hashToken(token);
+        await db
+          .update(refreshTokens)
+          .set({ revokedAt: new Date() })
+          .where(eq(refreshTokens.tokenHash, tokenHash));
+      }
       reply.clearCookie("refreshToken", { path: "/api/auth/refresh" });
       return { success: true as const };
+    },
+  );
+
+  /** GET /api/auth/me */
+  app.get(
+    "/api/auth/me",
+    {
+      preHandler: [async (request: FastifyRequest) => {
+        const { authenticate } = await import("../plugins/auth.js");
+        const reply = { status: () => ({ send: () => {} }) } as any;
+        await authenticate(request, reply);
+      }],
+      schema: {
+        response: { 200: zSchema(loginResponseSchema.pick({ user: true })) },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = (request as any).user;
+      if (!user) {
+        return reply.status(401).send({ success: false, error: "Unauthorized" });
+      }
+      const [staffUser] = await db
+        .select()
+        .from(staff)
+        .where(eq(staff.id, user.id));
+      if (!staffUser) {
+        return reply.status(404).send({ success: false, error: "User not found" });
+      }
+      return {
+        id: staffUser.id,
+        fullName: staffUser.fullName,
+        role: staffUser.role as "technician" | "admin",
+        cityId: staffUser.cityId ?? null,
+      };
     },
   );
 }

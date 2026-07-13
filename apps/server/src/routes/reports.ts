@@ -25,20 +25,21 @@ export async function reportRoutes(app: FastifyInstance) {
         tags,
         querystring: zSchema(z.strictObject({ cityId: z.string().optional() })),
         response: {
-          200: zSchema(z.strictObject({
-            machines: z.array(z.strictObject({
-              number: z.number().int().positive(),
-              locationName: z.string(),
-              typeName: z.string(),
-              status: z.string(),
-              gameCounter: z.number().int().min(0).nullable(),
-              revenue30d: z.number(),
-              lastRoi: z.number().nullable(),
-              roiTrend: z.array(z.number().nullable()),
-              trendLabel: z.string(),
-              lastServiceDate: z.string().nullable(),
-              lastServiceBy: z.string().nullable(),
-            })),
+         200: zSchema(z.strictObject({
+             machines: z.array(z.strictObject({
+               number: z.number().int().positive(),
+               locationName: z.string(),
+               typeName: z.string(),
+               status: z.string(),
+               gameCounter: z.number().int().min(0).nullable(),
+               revenue30d: z.number(),
+               lastRoi: z.number().nullable(),
+               roiTrend: z.array(z.number().nullable()),
+               trendLabel: z.string(),
+               lastServiceDate: z.string().nullable(),
+               lastServiceBy: z.string().nullable(),
+               photoCounterUrl: z.string().nullable(),
+             })),
             summary: z.strictObject({
               totalMachines: z.number().int().min(0),
               totalServices30d: z.number().int().min(0),
@@ -76,7 +77,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
       const result = await Promise.all(rows.map(async (m) => {
         const [last] = await db
-          .select({ gc: service.gameCounter, roi: service.roi, d: service.serviceDate })
+          .select({ gc: service.gameCounter, roi: service.roi, d: service.serviceDate, photoCounterUrl: service.photoCounterUrl })
           .from(service)
           .innerJoin(machinePlacements, eq(service.placementId, machinePlacements.id))
           .where(and(eq(machinePlacements.machineNumber, m.number), isNull(machinePlacements.endedAt)))
@@ -109,6 +110,7 @@ export async function reportRoutes(app: FastifyInstance) {
           gameCounter: last?.gc ?? null, revenue30d: Number(rev?.total ?? 0),
           lastRoi: last?.roi != null ? Number(last.roi) : null, roiTrend: trend, trendLabel: label,
           lastServiceDate: last?.d ?? null, lastServiceBy: null,
+          photoCounterUrl: last?.photoCounterUrl ?? null,
         };
       }));
       result.sort((a, b) => a.number - b.number);

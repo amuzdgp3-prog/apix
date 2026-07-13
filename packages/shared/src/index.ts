@@ -54,6 +54,8 @@ export {
   type Machine,
   machineCreateSchema,
   type MachineCreate,
+  machineCreateFullSchema,
+  type MachineCreateFull,
   machineUpdateSchema,
   type MachineUpdate,
   machinePlacementSchema,
@@ -70,6 +72,12 @@ export {
   type MachineRoute,
   machineTechnicianSchema,
   type MachineTechnician,
+  machineTechniciansUpdateSchema,
+  type MachineTechniciansUpdate,
+  machineRoutesUpdateSchema,
+  type MachineRoutesUpdate,
+  machineToysUpdateSchema,
+  type MachineToysUpdate,
 } from "./schemas/machine";
 
 // ==========================================
@@ -163,3 +171,23 @@ export {
   forgottenMachineSchema,
   type ForgottenMachine,
 } from "./schemas/cache";
+
+// ==========================================
+// Monitoring
+// ==========================================
+export {
+  errorLevelSchema,
+  type ErrorLevel,
+  serverErrorSchema,
+  type ServerError,
+  systemMetricSchema,
+  type SystemMetric,
+  dependencyStatusSchema,
+  type DependencyStatus,
+  monitoringMetricsResponseSchema,
+  type MonitoringMetricsResponse,
+  getErrorsQuerySchema,
+  type GetErrorsQuery,
+  getErrorsResponseSchema,
+  type GetErrorsResponse,
+} from "./schemas/monitoring";

@@ -37,7 +37,8 @@ interface ServicesResponse {
 
 export default function ServiceLog() {
   const [machineNumber, setMachineNumber] = useState("")
-  const [staffId, setStaffId] = useState("")
+  const [staffName, setStaffName] = useState("")
+  const [locationName, setLocationName] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [isOperational, setIsOperational] = useState<string>("")
@@ -46,7 +47,8 @@ export default function ServiceLog() {
 
   const params: Record<string, string> = { page: String(page), limit: String(limit) }
   if (machineNumber) params.machineNumber = machineNumber
-  if (staffId) params.staffId = staffId
+  if (staffName) params.staffName = staffName
+  if (locationName) params.locationName = locationName
   if (dateFrom) params.dateFrom = dateFrom
   if (dateTo) params.dateTo = dateTo
   if (isOperational) params.isOperational = isOperational
@@ -58,14 +60,15 @@ export default function ServiceLog() {
 
   const clearFilters = () => {
     setMachineNumber("")
-    setStaffId("")
+    setStaffName("")
+    setLocationName("")
     setDateFrom("")
     setDateTo("")
     setIsOperational("")
     setPage(1)
   }
 
-  const hasFilters = machineNumber || staffId || dateFrom || dateTo || isOperational
+  const hasFilters = machineNumber || staffName || locationName || dateFrom || dateTo || isOperational
   const totalPages = data ? Math.ceil(data.total / limit) : 0
 
   return (
@@ -88,15 +91,24 @@ export default function ServiceLog() {
                 onChange={(e) => { setMachineNumber(e.target.value); setPage(1) }}
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Техник (ID)</label>
-              <Input
-                placeholder="5"
-                className="w-24"
-                value={staffId}
-                onChange={(e) => { setStaffId(e.target.value); setPage(1) }}
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Адрес</label>
+                <Input
+                  placeholder="Москва"
+                  className="w-40"
+                  value={locationName}
+                  onChange={(e) => { setLocationName(e.target.value); setPage(1) }}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Техник</label>
+                <Input
+                  placeholder="Иван"
+                  className="w-36"
+                  value={staffName}
+                  onChange={(e) => { setStaffName(e.target.value); setPage(1) }}
+                />
+              </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground">Дата с</label>
               <Input

@@ -41,8 +41,8 @@ export default function QrScanner({ onScan, onClose }: QrScannerProps) {
 
           // Парсим номер машины из URL или чистого текста
           let machineNumber = decodedText.trim();
-          // Если это URL вида .../machines/123, извлекаем номер
-          const urlMatch = machineNumber.match(/\/machines\/(\d+)/);
+          // Поддерживаем оба формата: .../machines/123 и .../service/123
+          const urlMatch = machineNumber.match(/\/(?:machines|service)\/(\d+)/);
           if (urlMatch) {
             machineNumber = urlMatch[1];
           }

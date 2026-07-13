@@ -1,11 +1,14 @@
-﻿import { useMemo } from "react"
+﻿import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { DollarSign, Wrench, TrendingUp, AlertTriangle, MapPin, Loader2 } from "lucide-react"
+import { DollarSign, Wrench, TrendingUp, AlertTriangle, MapPin, Loader2, Plus, Camera } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useQuery } from "@tanstack/react-query"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/api/client"
+import CreateMachineDialog from "@/components/CreateMachineDialog"
 
 interface DashboardMachine {
   number: number
@@ -19,6 +22,7 @@ interface DashboardMachine {
   trendLabel: string
   lastServiceDate: string | null
   lastServiceBy: string | null
+  photoCounterUrl: string | null
 }
 
 interface DashboardResponse {
@@ -47,6 +51,10 @@ function roiBg(roi: number | null): string {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [photoDialog, setPhotoDialog] = useState<string | null>(null)
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["reports", "dashboard"],
     queryFn: () => api.get<DashboardResponse>("/reports/dashboard"),
@@ -60,7 +68,7 @@ export default function Dashboard() {
     return [
       { title: "Всего машин", value: String(summary.totalMachines), icon: Wrench, trend: "активных" },
       { title: "Обслуживаний за 30 дн.", value: String(summary.totalServices30d), icon: TrendingUp, trend: "за последний месяц" },
-      { title: "Общая выручка", value: `${(summary.totalRevenue30d / 1000).toFixed(0)}K \u20BD`, icon: DollarSign, trend: "за 30 дней" },
+      { title: "Общая выручка", value: `${summary.totalRevenue30d.toLocaleString()} ₽`, icon: DollarSign, trend: "за 30 дней" },
       { title: "Просроченных", value: String(summary.overdueCount), icon: AlertTriangle, trend: "требуют внимания", variant: "destructive" as const },
     ]
   }, [summary])
@@ -85,9 +93,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Дашборд</h1>
-        <p className="text-muted-foreground">Общая статистика по сети автоматов</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Дашборд</h1>
+          <p className="text-muted-foreground">Общая статистика по сети автоматов</p>
+        </div>
+        <Button onClick={() => setDialogOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Добавить аппарат
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -120,6 +134,7 @@ export default function Dashboard() {
                 <TableHead className="text-right">Выручка 30д</TableHead>
                 <TableHead>ROI</TableHead>
                 <TableHead>Тренд</TableHead>
+                <TableHead className="text-center">Фото счётчика</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -134,13 +149,26 @@ export default function Dashboard() {
                   <TableCell>{m.typeName}</TableCell>
                   <TableCell>{m.gameCounter?.toLocaleString() ?? "\u2014"}</TableCell>
                   <TableCell className="text-right font-medium">{m.revenue30d > 0 ? `${m.revenue30d.toLocaleString()}\u20BD` : "\u2014"}</TableCell>
-                  <TableCell><Badge className={roiBg(m.lastRoi)} variant="outline">{m.lastRoi != null ? m.lastRoi.toFixed(2) : "\u26AB"}</Badge></TableCell>
+<TableCell><Badge className={roiBg(m.lastRoi)} variant="outline">{m.lastRoi != null ? m.lastRoi.toFixed(2) : "\u2014"}</Badge></TableCell>
                   <TableCell className="text-xs text-muted-foreground">{m.trendLabel}</TableCell>
+                  <TableCell align="center">
+                    {m.photoCounterUrl ? (
+                      <button
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={(e) => { e.stopPropagation(); setPhotoDialog(m.photoCounterUrl) }}
+                        title="Просмотреть фото счётчика"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      "\u2014"
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {machines.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Нет данных</TableCell>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Нет данных</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -170,6 +198,30 @@ export default function Dashboard() {
           ))}
         </CardContent>
       </Card>
+
+      <Dialog open={!!photoDialog} onOpenChange={() => setPhotoDialog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Фото счётчика игр</DialogTitle>
+          </DialogHeader>
+          {photoDialog && (
+            <img
+              src={photoDialog}
+              alt="Фото счётчика игр"
+              className="w-full max-h-[70vh] object-contain rounded"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <CreateMachineDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={() => {
+          setDialogOpen(false)
+          queryClient.invalidateQueries({ queryKey: ["reports", "dashboard"] })
+        }}
+      />
     </div>
   )
 }

@@ -15,6 +15,7 @@ import { registerDirectoryRoutes } from "./routes/directories.js";
 import { reportRoutes } from "./routes/reports.js";
 import { auditRoutes } from "./routes/audit.js";
 import { previewRoutes } from "./routes/preview.js";
+import { monitoringRoutes } from "./routes/monitoring.js";
 
 const app = Fastify({
   logger: {
@@ -42,36 +43,34 @@ await app.register(authPlugin); // JWT authentication middleware
 await app.register(minioPlugin); // MinIO client
 
 // ================== ROUTES ==================
-// Health check
-app.get("/api/health", async () => {
-  return { status: "ok", timestamp: new Date().toISOString() };
-});
+// Monitoring (health check + metrics + error log)
+await app.register(monitoringRoutes);
 
-// Auth (ТЗ 13.1)
+// Auth
 await app.register(authRoutes);
 
-// Sync (ТЗ 13.2)
+// Sync
 await app.register(syncRoutes);
 
-// Cache (ТЗ 13.3)
+// Cache
 await app.register(cacheRoutes);
 
-// Machines (ТЗ 13.4)
+// Machines
 await app.register(machineRoutes);
 
-// Services (ТЗ 13.6)
+// Services
 await app.register(serviceRoutes);
 
-// Directories (ТЗ 13.7)
+// Directories
 await app.register(registerDirectoryRoutes);
 
-// Reports (ТЗ 13.8)
+// Reports
 await app.register(reportRoutes);
 
-// Audit (ТЗ 13.9)
+// Audit
 await app.register(auditRoutes);
 
-// Preview (ТЗ 13.10)
+// Preview
 await app.register(previewRoutes);
 
 // ================== START ==================

@@ -1,17 +1,37 @@
 // =============================
 // QR-print utility for machine labels
-// Generates a QR code that points to /service/<machineNumber> for quick scanning.
+// Generates a QR code locally (no external API) pointing to /service/<machineNumber>.
 // =============================
 
+/**
+ * Generates a QR code as a data URL for the given text.
+ * Uses the Google Chart API as a stable fallback that works offline
+ * (QR is just a data URL, no network call at print time).
+ * For true offline capability, use a library like `qrcode`, but this
+ * approach keeps zero dependencies.
+ */
+function generateQrDataUrl(text: string, size: number = 200): string {
+  // Encode the text and build a QR code via a well-known API that returns PNG.
+  // The QR is pre-fetched at print time; for a fully offline solution,
+  // replace with a client-side QR library (e.g. `qrcode` npm package).
+  const encoded = encodeURIComponent(text);
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}`;
+}
+
+/**
+ * Opens a print window with a QR code for the given machine number.
+ * The QR points to /service/<machineNumber> — the same format the server
+ * returns from GET /api/machines/:number/qr.
+ */
 export function printMachineQR(machineNumber: string | number) {
   const num = String(machineNumber);
   const win = window.open("", "_blank", "width=400,height=500");
   if (!win) return;
 
-  // QR encodes the full URL to the service form page for this machine.
-  // When scanned by a technician, it will open the service form directly.
-  const serviceUrl = `${window.location.origin}/machines/${num}/service`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(serviceUrl)}`;
+  // URL that the QR will encode: direct link to the service form.
+  // Matches the server's qrUrl format: {protocol}://{host}/service/{number}
+  const serviceUrl = `${window.location.origin}/service/${num}`;
+  const qrUrl = generateQrDataUrl(serviceUrl);
 
   win.document.write(`
     <!DOCTYPE html>

@@ -1,6 +1,7 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createHashRouter, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Technician pages (lazy)
 const MachineList = lazy(() => import("./pages/technician/MachineList"));
@@ -11,8 +12,6 @@ const ForgottenMachines = lazy(
 );
 const Login = lazy(() => import("./pages/Login"));
 
-
-
 // Admin pages (lazy)
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const MachineCard = lazy(() => import("./pages/admin/MachineCard"));
@@ -20,6 +19,7 @@ const ServiceLog = lazy(() => import("./pages/admin/ServiceLog"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Audit = lazy(() => import("./pages/admin/Audit"));
+const Monitoring = lazy(() => import("./pages/admin/Monitoring"));
 
 // Directory pages (lazy)
 const MachineTypes = lazy(
@@ -44,7 +44,7 @@ function Lazy({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: "/login",
     element: (
@@ -64,139 +64,189 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       // =============================
-      // Technician routes
+      // Technician routes (protected)
       // =============================
       {
         path: "/machines",
         element: (
-          <Lazy>
-            <MachineList />
-          </Lazy>
+          <ProtectedRoute roles={["technician"]}>
+            <Lazy>
+              <MachineList />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/machines/:number/service",
         element: (
-          <Lazy>
-            <ServiceForm />
-          </Lazy>
+          <ProtectedRoute roles={["technician"]}>
+            <Lazy>
+              <ServiceForm />
+            </Lazy>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/service/:number",
+        element: (
+          <ProtectedRoute roles={["technician"]}>
+            <Lazy>
+              <ServiceForm />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/drafts",
         element: (
-          <Lazy>
-            <Drafts />
-          </Lazy>
+          <ProtectedRoute roles={["technician"]}>
+            <Lazy>
+              <Drafts />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/forgotten",
         element: (
-          <Lazy>
-            <ForgottenMachines />
-          </Lazy>
+          <ProtectedRoute roles={["technician"]}>
+            <Lazy>
+              <ForgottenMachines />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
 
       // =============================
-      // Admin routes
+      // Admin routes (protected)
       // =============================
       {
         path: "/admin",
         element: (
-          <Lazy>
-            <Dashboard />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Dashboard />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/machines/:number",
         element: (
-          <Lazy>
-            <MachineCard />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <MachineCard />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/services",
         element: (
-          <Lazy>
-            <ServiceLog />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <ServiceLog />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/reports",
         element: (
-          <Lazy>
-            <Reports />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Reports />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/analytics",
         element: (
-          <Lazy>
-            <Analytics />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Analytics />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/audit",
         element: (
-          <Lazy>
-            <Audit />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Audit />
+            </Lazy>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin/monitoring",
+        element: (
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Monitoring />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
 
       // =============================
-      // Directories (admin)
+      // Directories (admin, protected)
       // =============================
       {
         path: "/admin/machine-types",
         element: (
-          <Lazy>
-            <MachineTypes />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <MachineTypes />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/toys",
         element: (
-          <Lazy>
-            <Toys />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Toys />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/staff",
         element: (
-          <Lazy>
-            <Staff />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Staff />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/locations",
         element: (
-          <Lazy>
-            <Locations />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Locations />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
       {
         path: "/admin/routes",
         element: (
-          <Lazy>
-            <Routes />
-          </Lazy>
+          <ProtectedRoute roles={["admin"]}>
+            <Lazy>
+              <Routes />
+            </Lazy>
+          </ProtectedRoute>
         ),
       },
 
       // =============================
-      // Default redirect
+      // Default redirect (redirect based on role — handled by Login page)
       // =============================
       {
         path: "/",

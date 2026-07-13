@@ -26,3 +26,4 @@
 ## ВСЕГДА перед началом задачи читать .clinerules/execution-rules.md и .clinerules/context-rules.md
 ## ВСЕГДА перед началом задачи читать .clinerules/anti-loop-rules.md
 ## ВСЕГДА перед началом задачи читать .clinerules/powershell-mandatory.md
+## ПЕРЕД ЛЮБЫМИ SSH-КОМАНДАМИ, КОТОРЫЕ ИЗМЕНЯЮТ ФАЙЛЫ ИЛИ ПЕРЕЗАПУСКАЮТ СЛУЖБЫ, ОБЯЗАТЕЛЬНО СОЗДАЙ БЭКАП КОНФИГОВ: mkdir -p /backup && tar -czf /backup/config_$(date +%Y%m%d_%H%M%S).tar.gz /etc/nginx /etc/php* /etc/apache2 /etc/supervisor /etc/systemd/system/*.service /var/www/*/.env 2>/dev/null. Если архивация не удалась (код возврата != 0) — ОСТАНОВИСЬ и сообщи мне. После успешного бэкапа продолжай деплой. При любой ошибке — откатывай конфиги из последнего архива.

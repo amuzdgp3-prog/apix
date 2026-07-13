@@ -5,18 +5,110 @@ import { zSchema } from "../utils/zod-json-schema.js";
 import { db } from "../db/index.js";
 import { machines } from "../db/schema/machines.js";
 import { machinePlacements } from "../db/schema/placements.js";
-import { service } from "../db/schema/services.js";
-import { locations } from "../db/schema/locations.js";
+import { service, toyDistribution } from "../db/schema/services.js";
+import { locations, routes } from "../db/schema/locations.js";
 import { machineTypes } from "../db/schema/machine-types.js";
 import { toys } from "../db/schema/toys.js";
 import { staff } from "../db/schema/staff.js";
 import { machineTechnicians, machineRoutes as machineRoutesTable, machineToys } from "../db/schema/machines.js";
 import { machineTypeToys } from "../db/schema/toys.js";
 import { authenticate } from "../plugins/auth.js";
+import { machineCreateFullSchema } from "@apix/shared";
 
 const tags = ["Machines"];
 
 export async function machineRoutes(app: FastifyInstance) {
+  // POST /api/machines — создать новый аппарат
+  app.post(
+    "/api/machines",
+    { preValidation: [authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = machineCreateFullSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Некорректные данные", details: parsed.error.flatten() });
+      }
+
+      const {
+        number,
+        locationName,
+        typeId,
+        pricePerGame,
+        maxServiceDays,
+        gameCounterInitial,
+        prizeCounterInitial,
+        routeIds,
+      } = parsed.data;
+
+      // Проверить уникальность номера
+      const [existing] = await db
+        .select({ number: machines.number })
+        .from(machines)
+        .where(and(eq(machines.number, number), isNull(machines.deletedAt)))
+        .limit(1);
+
+      if (existing) {
+        return reply.status(409).send({ error: "Аппарат с таким номером уже существует" });
+      }
+
+      // Проверить существование типа
+      const [mt] = await db.select({ id: machineTypes.id }).from(machineTypes).where(eq(machineTypes.id, typeId)).limit(1);
+      if (!mt) {
+        return reply.status(400).send({ error: "Тип аппарата не найден" });
+      }
+
+      // Найти или создать адрес (location) по текстовому названию
+      const locName = locationName.trim();
+      let locationId: number;
+      const [existingLoc] = await db
+        .select({ id: locations.id })
+        .from(locations)
+        .where(eq(locations.name, locName))
+        .limit(1);
+      if (existingLoc) {
+        locationId = existingLoc.id;
+      } else {
+        const [created] = await db
+          .insert(locations)
+          .values({ name: locName, createdAt: new Date(), updatedAt: new Date() })
+          .returning({ id: locations.id });
+        locationId = created.id;
+      }
+
+      // Создать аппарат
+      await db.insert(machines).values({
+        number,
+        locationId,
+        typeId,
+        status: "active",
+        pricePerGame: String(pricePerGame),
+        hasPrizeCounter: true,
+        minServiceDays: null,
+        maxServiceDays: maxServiceDays ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Создать placement с начальными счётчиками
+      await db.insert(machinePlacements).values({
+        machineNumber: number,
+        startedAt: new Date(),
+        gameCounterInitial,
+        prizeCounterInitial,
+        createdBy: request.user?.id,
+        createdAt: new Date(),
+      });
+
+      // Привязать маршруты
+      if (routeIds && routeIds.length > 0) {
+        await db.insert(machineRoutesTable).values(
+          routeIds.map((rid) => ({ machineNumber: number, routeId: rid })),
+        );
+      }
+
+      return reply.status(201).send({ ok: true, machineNumber: number });
+    },
+  );
+
   // GET /api/machines/:number/qr — данные для QR-кода аппарата
   app.get(
     "/api/machines/:number/qr",
@@ -87,6 +179,7 @@ export async function machineRoutes(app: FastifyInstance) {
           200: zSchema(
             z.strictObject({
               number: z.number().int().positive(),
+              typeId: z.number().int().positive(),
               typeName: z.string(),
               locationName: z.string(),
               status: z.string(),
@@ -95,8 +188,8 @@ export async function machineRoutes(app: FastifyInstance) {
               minServiceDays: z.number().int().positive().nullable(),
               maxServiceDays: z.number().int().positive().nullable(),
               toys: z.array(z.strictObject({ id: z.number(), name: z.string(), price: z.number() })),
-              technicians: z.array(z.string()),
-              routes: z.array(z.string()),
+              technicians: z.array(z.strictObject({ id: z.number().int().positive(), name: z.string() })),
+              routes: z.array(z.strictObject({ id: z.number().int().positive(), name: z.string() })),
                services: z.array(
                  z.strictObject({
                    id: z.number().int().positive(),
@@ -150,15 +243,15 @@ export async function machineRoutes(app: FastifyInstance) {
         .where(eq(machineTypeToys.machineTypeId, m.typeId as unknown as number));
 
       const techRows = await db
-        .select({ name: sql<string>`${staff.fullName}` })
+        .select({ id: staff.id, name: sql<string>`${staff.fullName}` })
         .from(machineTechnicians)
         .innerJoin(staff, eq(machineTechnicians.staffId, staff.id))
         .where(eq(machineTechnicians.machineNumber, machineNumber));
 
       const routeRows = await db
-        .select({ name: sql<string>`COALESCE(r.name, '')` })
+        .select({ id: routes.id, name: routes.name })
         .from(machineRoutesTable)
-        .innerJoin(sql`routes r ON r.id = ${machineRoutesTable.routeId}`, sql``)
+        .innerJoin(routes, eq(machineRoutesTable.routeId, routes.id))
         .where(eq(machineRoutesTable.machineNumber, machineNumber));
 
       const serviceHistory = await db
@@ -174,6 +267,8 @@ export async function machineRoutes(app: FastifyInstance) {
           photoCounterUrl: service.photoCounterUrl,
           photoBeforeUrl: service.photoBeforeUrl,
           photoAfterUrl: service.photoAfterUrl,
+          comment: service.comment,
+          costOfToys: service.costOfToys,
         })
         .from(service)
         .innerJoin(machinePlacements, eq(service.placementId, machinePlacements.id))
@@ -214,8 +309,36 @@ export async function machineRoutes(app: FastifyInstance) {
 
       const fmt = (v: unknown) => v != null ? Number(v) : null;
 
+      // Получаем распределение игрушек для всех сервисов из истории
+      const serviceIds = serviceHistory.map((s) => s.id);
+      const toyDistRows = serviceIds.length > 0
+        ? await db
+            .select({
+              serviceId: toyDistribution.serviceId,
+              toyName: toys.name,
+              quantity: toyDistribution.quantity,
+              priceSnapshot: toyDistribution.priceSnapshot,
+              totalCost: toyDistribution.totalCost,
+            })
+            .from(toyDistribution)
+            .innerJoin(toys, eq(toyDistribution.toyId, toys.id))
+            .where(sql`${toyDistribution.serviceId} IN ${serviceIds}`)
+        : [];
+
+      const toyDistByService: Record<number, Array<{ toyName: string; quantity: number; priceSnapshot: number; totalCost: number }>> = {};
+      for (const td of toyDistRows) {
+        if (!toyDistByService[td.serviceId]) toyDistByService[td.serviceId] = [];
+        toyDistByService[td.serviceId].push({
+          toyName: td.toyName,
+          quantity: td.quantity,
+          priceSnapshot: Number(td.priceSnapshot),
+          totalCost: Number(td.totalCost),
+        });
+      }
+
       return {
         number: m.number,
+        typeId: m.typeId as number,
         typeName: m.typeName,
         locationName: m.locationName,
         status: m.status as string,
@@ -224,8 +347,8 @@ export async function machineRoutes(app: FastifyInstance) {
         minServiceDays: m.minServiceDays,
         maxServiceDays: m.maxServiceDays,
         toys: machineToys.map((t) => ({ id: t.id, name: t.name, price: Number(t.price) })),
-        technicians: techRows.map((r) => String(r.name)),
-        routes: routeRows.map((r) => String(r.name)),
+        technicians: techRows.map((r) => ({ id: r.id, name: String(r.name) })),
+        routes: routeRows.map((r) => ({ id: r.id, name: String(r.name) })),
         services: serviceHistory.map((s) => ({
           id: s.id,
           serviceDate: s.serviceDate,
@@ -235,11 +358,14 @@ export async function machineRoutes(app: FastifyInstance) {
           roi: fmt(s.roi),
           isOperational: s.isOperational,
           staffName: String(s.staffName),
+          comment: s.comment,
+          costOfToys: fmt(s.costOfToys),
           photos: {
             counter: s.photoCounterUrl,
             before: s.photoBeforeUrl,
             after: s.photoAfterUrl,
           },
+          toyDistribution: toyDistByService[s.id] || [],
         })),
         stats: {
           totalServices: Number(statsRow?.total ?? 0),
@@ -564,6 +690,131 @@ export async function machineRoutes(app: FastifyInstance) {
         oldMachineNumber: oldNumber,
         newMachineNumber,
       });
+    },
+  );
+
+  // PUT /api/machines/:number — обновление основных параметров аппарата
+  app.put(
+    "/api/machines/:number",
+    { preValidation: [authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const machineNumber = parseInt((request.params as { number: string }).number, 10);
+      const { machineUpdateSchema } = await import("@apix/shared");
+      const parsed = machineUpdateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Некорректные данные", details: parsed.error.flatten() });
+      }
+
+      const [m] = await db
+        .select({ number: machines.number })
+        .from(machines)
+        .where(and(eq(machines.number, machineNumber), isNull(machines.deletedAt)))
+        .limit(1);
+      if (!m) return reply.status(404).send({ error: "Аппарат не найден" });
+
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      const data = parsed.data;
+      if (data.locationId !== undefined) updates.locationId = data.locationId;
+      if (data.typeId !== undefined) updates.typeId = data.typeId;
+      if (data.status !== undefined) updates.status = data.status;
+      if (data.pricePerGame !== undefined) updates.pricePerGame = String(data.pricePerGame);
+      if (data.hasPrizeCounter !== undefined) updates.hasPrizeCounter = data.hasPrizeCounter;
+      if (data.minServiceDays !== undefined) updates.minServiceDays = data.minServiceDays;
+      if (data.maxServiceDays !== undefined) updates.maxServiceDays = data.maxServiceDays;
+
+      await db.update(machines).set(updates).where(eq(machines.number, machineNumber));
+      return reply.send({ ok: true });
+    },
+  );
+
+  // PUT /api/machines/:number/technicians — замена списка техников
+  app.put(
+    "/api/machines/:number/technicians",
+    { preValidation: [authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const machineNumber = parseInt((request.params as { number: string }).number, 10);
+      const { machineTechniciansUpdateSchema } = await import("@apix/shared");
+      const parsed = machineTechniciansUpdateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Некорректные данные", details: parsed.error.flatten() });
+      }
+
+      const [m] = await db
+        .select({ number: machines.number })
+        .from(machines)
+        .where(and(eq(machines.number, machineNumber), isNull(machines.deletedAt)))
+        .limit(1);
+      if (!m) return reply.status(404).send({ error: "Аппарат не найден" });
+
+      // Удаляем все старые привязки
+      await db.delete(machineTechnicians).where(eq(machineTechnicians.machineNumber, machineNumber));
+      // Добавляем новые
+      if (parsed.data.staffIds.length > 0) {
+        await db.insert(machineTechnicians).values(
+          parsed.data.staffIds.map((sid) => ({ machineNumber, staffId: sid })),
+        );
+      }
+      return reply.send({ ok: true });
+    },
+  );
+
+  // PUT /api/machines/:number/routes — замена списка маршрутов
+  app.put(
+    "/api/machines/:number/routes",
+    { preValidation: [authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const machineNumber = parseInt((request.params as { number: string }).number, 10);
+      const { machineRoutesUpdateSchema } = await import("@apix/shared");
+      const parsed = machineRoutesUpdateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Некорректные данные", details: parsed.error.flatten() });
+      }
+
+      const [m] = await db
+        .select({ number: machines.number })
+        .from(machines)
+        .where(and(eq(machines.number, machineNumber), isNull(machines.deletedAt)))
+        .limit(1);
+      if (!m) return reply.status(404).send({ error: "Аппарат не найден" });
+
+      // Удаляем все старые привязки
+      await db.delete(machineRoutesTable).where(eq(machineRoutesTable.machineNumber, machineNumber));
+      // Добавляем новые
+      if (parsed.data.routeIds.length > 0) {
+        await db.insert(machineRoutesTable).values(
+          parsed.data.routeIds.map((rid) => ({ machineNumber, routeId: rid })),
+        );
+      }
+      return reply.send({ ok: true });
+    },
+  );
+
+  // PUT /api/machines/:number/toys — замена списка игрушек аппарата
+  app.put(
+    "/api/machines/:number/toys",
+    { preValidation: [authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const machineNumber = parseInt((request.params as { number: string }).number, 10);
+      const { machineToysUpdateSchema } = await import("@apix/shared");
+      const parsed = machineToysUpdateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Некорректные данные", details: parsed.error.flatten() });
+      }
+
+      const [m] = await db
+        .select({ number: machines.number })
+        .from(machines)
+        .where(and(eq(machines.number, machineNumber), isNull(machines.deletedAt)))
+        .limit(1);
+      if (!m) return reply.status(404).send({ error: "Аппарат не найден" });
+
+      await db.delete(machineToys).where(eq(machineToys.machineNumber, machineNumber));
+      if (parsed.data.toyIds.length > 0) {
+        await db.insert(machineToys).values(
+          parsed.data.toyIds.map((tid: number) => ({ machineNumber, toyId: tid, action: "add" as const })),
+        );
+      }
+      return reply.send({ ok: true });
     },
   );
 }

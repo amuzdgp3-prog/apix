@@ -4,12 +4,15 @@ import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { InstallBanner } from "./InstallBanner";
 import { useForgottenMachines } from "../hooks/useForgottenMachines";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { isTechnician } = useAuth();
 
   // Баннер забытых аппаратов (только для техников)
   const { machines: forgottenMachines } = useForgottenMachines(30);
@@ -18,10 +21,6 @@ export default function Layout() {
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
-
-  const isTechnician = location.pathname.startsWith("/machines") ||
-    location.pathname.startsWith("/drafts") ||
-    location.pathname.startsWith("/forgotten");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -50,6 +49,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      {isTechnician && <InstallBanner />}
     </div>
   );
 }

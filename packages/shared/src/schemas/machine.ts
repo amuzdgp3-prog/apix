@@ -38,6 +38,18 @@ export const machineCreateSchema = z.strictObject({
 });
 export type MachineCreate = z.infer<typeof machineCreateSchema>;
 
+export const machineCreateFullSchema = z.strictObject({
+  number: z.number().int().positive(),
+  locationName: z.string().min(1, "Адрес не может быть пустым"),
+  typeId: z.number().int().positive(),
+  pricePerGame: z.number().min(0),
+  maxServiceDays: z.number().int().positive().nullable().optional(),
+  gameCounterInitial: z.number().int().min(0),
+  prizeCounterInitial: z.number().int().min(0),
+  routeIds: z.array(z.number().int().positive()).optional(),
+});
+export type MachineCreateFull = z.infer<typeof machineCreateFullSchema>;
+
 export const machineUpdateSchema = z.strictObject({
   locationId: z.number().int().positive().optional(),
   typeId: z.number().int().positive().optional(),
@@ -118,3 +130,26 @@ export const machineTechnicianSchema = z.strictObject({
   staffId: z.number().int().positive(),
 });
 export type MachineTechnician = z.infer<typeof machineTechnicianSchema>;
+
+// ==========================================
+// Обновление привязок (техники / маршруты)
+// ==========================================
+
+export const machineTechniciansUpdateSchema = z.strictObject({
+  staffIds: z.array(z.number().int().positive()),
+});
+export type MachineTechniciansUpdate = z.infer<typeof machineTechniciansUpdateSchema>;
+
+export const machineRoutesUpdateSchema = z.strictObject({
+  routeIds: z.array(z.number().int().positive()),
+});
+export type MachineRoutesUpdate = z.infer<typeof machineRoutesUpdateSchema>;
+
+// ==========================================
+// Обновление игрушек аппарата
+// ==========================================
+
+export const machineToysUpdateSchema = z.strictObject({
+  toyIds: z.array(z.number().int().positive()),
+});
+export type MachineToysUpdate = z.infer<typeof machineToysUpdateSchema>;

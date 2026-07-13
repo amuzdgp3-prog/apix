@@ -1,497 +1,349 @@
-import { useMemo, useState } from "react"
-import { useParams } from "react-router-dom"
-import { Loader2, Package, Route, Users, History, QrCode, Camera, Replace, Settings } from "lucide-react"
+import { useParams, useNavigate } from "react-router-dom"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { ArrowLeft, Loader2, MapPin, Wrench, Users, Route, Package, Coins, BarChart3, Pencil, Camera } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { api } from "@/api/client"
-import { fetchToys } from "@/api/directories"
-import { printMachineQR } from "@/utils/qrPrint"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { getMachineCard, updateMachine, updateMachineTechnicians, updateMachineRoutes, updateMachineToys, type MachineCardData } from "@/api/machines"
+import { fetchMachineTypes, fetchStaff, fetchRoutes, fetchToys } from "@/api/directories"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-interface MachineToy { id: number; name: string; price: number }
-interface ServicePhotos { counter?: string | null; before?: string | null; after?: string | null }
-interface MachineService {
-  id: number; serviceDate: string; gameCounter: number
-  newGames: number | null; revenue: number | null; roi: number | null
-  isOperational: boolean; staffName: string; photos: ServicePhotos
-}
-interface RoiPoint { date: string; roi: number }
-interface MachineCardData {
-  number: number; typeName: string; locationName: string; status: string
-  pricePerGame: number; hasPrizeCounter: boolean
-  minServiceDays: number | null; maxServiceDays: number | null
-  toys: MachineToy[]; technicians: string[]; routes: string[]
-  services: MachineService[]
-  stats: { totalServices: number; revenue30d: number; avgRoi: number | null }
-  roiTrend: RoiPoint[]
-}
-
-interface MachineToyOverride { toyId: number; action: "add" | "remove" }
+// ---- Main component ----
 
 export default function MachineCard() {
   const { number } = useParams<{ number: string }>()
-  const num = Number(number)
-  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const mn = Number(number)
 
-  // Диалог замены аппарата
-  const [replaceOpen, setReplaceOpen] = useState(false)
-  const [newNumber, setNewNumber] = useState("")
-  const [gameCounter, setGameCounter] = useState("0")
-  const [prizeCounter, setPrizeCounter] = useState("0")
-  const [replacing, setReplacing] = useState(false)
-  const [replaceError, setReplaceError] = useState("")
+  const { data: m, isLoading, error } = useQuery<MachineCardData>({
+    queryKey: ["machine", mn], queryFn: () => getMachineCard(mn), enabled: !!mn,
+  })
+  const { data: types } = useQuery({ queryKey: ["machineTypes"], queryFn: fetchMachineTypes })
+  const { data: staff } = useQuery({ queryKey: ["staff"], queryFn: fetchStaff })
+  const { data: routes } = useQuery({ queryKey: ["routes"], queryFn: fetchRoutes })
+  const { data: toys } = useQuery({ queryKey: ["toys"], queryFn: fetchToys })
 
-  // Диалог индивидуальных правок игрушек
-  const [toysEditOpen, setToysEditOpen] = useState(false)
-  const [overrides, setOverrides] = useState<MachineToyOverride[]>([])
-  const [allToysFull, setAllToysFull] = useState<MachineToy[]>([])
-  const [toysEditLoading, setToysEditLoading] = useState(false)
-  const [editAction, setEditAction] = useState<"add" | "remove">("add")
-  const [editToyId, setEditToyId] = useState<string>("")
-  const [editSaving, setEditSaving] = useState(false)
+  const [edit, setEdit] = useState<string | null>(null)
+  const [techOpen, setTechOpen] = useState(false)
+  const [routeOpen, setRouteOpen] = useState(false)
+  const [toyOpen, setToyOpen] = useState(false)
+  const [techIds, setTechIds] = useState<number[]>([])
+  const [routeIds, setRouteIds] = useState<number[]>([])
+  const [toyIds, setToyIds] = useState<number[]>([])
+  const [photoDialog, setPhotoDialog] = useState<string | null>(null)
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["machine", num],
-    queryFn: () => api.get<MachineCardData>(`/machines/${num}`),
-    enabled: !!num,
+  const um = useMutation({
+    mutationFn: (b: Parameters<typeof updateMachine>[1]) => updateMachine(mn, b),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["machine", mn] }),
+  })
+  const tm = useMutation({
+    mutationFn: (ids: number[]) => updateMachineTechnicians(mn, ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["machine", mn] }),
+  })
+  const rm = useMutation({
+    mutationFn: (ids: number[]) => updateMachineRoutes(mn, ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["machine", mn] }),
+  })
+  const tym = useMutation({
+    mutationFn: (ids: number[]) => updateMachineToys(mn, ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["machine", mn] }),
   })
 
-  const toggleStatus = () => {
-    if (!data) return
-    const newStatus = data.status === "active" ? "inactive" : "active"
-    api.put(`/machines/${num}/status`, { status: newStatus })
-      .then(() => queryClient.invalidateQueries({ queryKey: ["machine", num] }))
-      .catch(() => {})
-  }
+  const save = useCallback((field: string, value: unknown) => {
+    const body: Record<string, unknown> = {}
+    if (field === "typeId") body.typeId = value
+    if (field === "status") body.status = value
+    if (field === "pricePerGame") body.pricePerGame = value
+    if (field === "hasPrizeCounter") body.hasPrizeCounter = value === "true" || value === true
+    if (field === "minServiceDays") body.minServiceDays = value === "" ? null : Number(value)
+    if (field === "maxServiceDays") body.maxServiceDays = value === "" ? null : Number(value)
+    um.mutate(body)
+    setEdit(null)
+  }, [um, mn])
 
-  const handleReplace = async () => {
-    setReplaceError("")
-    const nn = Number(newNumber)
-    if (!nn || nn <= 0) {
-      setReplaceError("Введите корректный номер нового аппарата")
-      return
-    }
-    if (nn === num) {
-      setReplaceError("Новый номер должен отличаться от текущего")
-      return
-    }
-    setReplacing(true)
-    try {
-      await api.post(`/machines/${num}/replace`, {
-        newMachineNumber: nn,
-        gameCounterInitial: Number(gameCounter) || 0,
-        prizeCounterInitial: Number(prizeCounter) || 0,
-      })
-      setReplaceOpen(false)
-      setNewNumber("")
-      setGameCounter("0")
-      setPrizeCounter("0")
-      queryClient.invalidateQueries({ queryKey: ["machine", num] })
-      // Показать предупреждение о редиректе на новую карточку
-      setTimeout(() => {
-        window.location.href = `/admin/machines/${nn}`
-      }, 500)
-    } catch (err: any) {
-      setReplaceError(err?.message ?? err?.error ?? "Ошибка замены аппарата")
-    } finally {
-      setReplacing(false)
-    }
-  }
+  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+  if (error || !m) return (
+    <div className="space-y-4">
+      <Button variant="ghost" onClick={() => navigate("/admin/machines")}><ArrowLeft className="h-4 w-4 mr-2" />Назад к списку</Button>
+      <Card className="border-destructive/30"><CardContent className="py-8 text-center">
+        <p className="text-destructive text-lg font-medium">Аппарат не найден или ошибка загрузки</p>
+        <p className="text-muted-foreground mt-1">Проверьте номер аппарата и попробуйте снова</p>
+      </CardContent></Card>
+    </div>
+  )
 
-  // Открыть диалог управления индивидуальными правками игрушек
-  const openToysEdit = async () => {
-    setToysEditOpen(true)
-    setToysEditLoading(true)
-    setEditToyId("")
-    setEditAction("add")
-    try {
-      const [ov, all] = await Promise.all([
-        api.get<MachineToyOverride[]>(`/machines/${num}/toys/overrides`),
-        fetchToys(),
-      ])
-      setOverrides(ov)
-      setAllToysFull(all)
-    } finally {
-      setToysEditLoading(false)
-    }
-  }
+  const typeOptions = types?.map(t => ({ value: t.id, label: t.name })) ?? []
+  const statusOpts = [{ value: "active", label: "Активен" }, { value: "inactive", label: "Неактивен" }]
+  const prizeOpts = [{ value: "true", label: "Есть" }, { value: "false", label: "Нет" }]
+  const staffOpts = (staff ?? []) as Array<{ id: number; name?: string; fullName?: string }>
+  const mappedStaff = staffOpts.map(s => ({ id: s.id, name: (s.name || (s as Record<string, unknown>).fullName || "—") as string }))
+  const mappedRoutes = (routes ?? []) as Array<{ id: number; name: string }>
+  const mappedToys = (toys ?? []) as Array<{ id: number; name: string; price: number }>
 
-  const handleToysEdit = async () => {
-    if (!editToyId) return
-    setEditSaving(true)
-    try {
-      await api.post(`/machines/${num}/toys`, {
-        toyId: Number(editToyId),
-        action: editAction,
-      })
-      // Перезагрузить overrides и данные машины
-      const [ov] = await Promise.all([
-        api.get<MachineToyOverride[]>(`/machines/${num}/toys/overrides`),
-        queryClient.invalidateQueries({ queryKey: ["machine", num] }),
-      ])
-      setOverrides(ov)
-      setEditToyId("")
-    } finally {
-      setEditSaving(false)
-    }
-  }
+  const statsCards = [
+    { title: "Всего обслуживаний", value: String(m.stats.totalServices), icon: BarChart3 },
+    { title: "Выручка за 30 дн.", value: `${m.stats.revenue30d.toLocaleString()} ₽`, icon: Coins },
+    { title: "Средний ROI", value: m.stats.avgRoi != null ? m.stats.avgRoi.toFixed(2) : "—", icon: Wrench },
+    { title: "Тренд ROI", value: m.roiTrend.length >= 2 ? `${m.roiTrend[0].roi.toFixed(2)} → ${m.roiTrend[m.roiTrend.length - 1].roi.toFixed(2)}` : "—", icon: BarChart3 },
+  ]
 
-  // Доступные для добавления игрушки (ещё нет в computed наборе)
-  const availableToAdd = useMemo(() => {
-    if (!data) return []
-    return allToysFull.filter(t =>
-      !data.toys.some(dt => dt.id === t.id) &&
-      !overrides.some(o => o.toyId === t.id && o.action === "add")
-    )
-  }, [allToysFull, data, overrides])
+  const editRow = (label: string, field: string, display: string, el: React.ReactNode, icon?: React.ReactNode) => (
+    <div className="flex items-center gap-2">
+      {icon}
+      <span className="text-sm text-muted-foreground w-32 flex-shrink-0">{label}:</span>
+      {edit === field ? el : <span className="text-sm font-medium">{display}</span>}
+      <button className="ml-auto text-muted-foreground hover:text-foreground flex-shrink-0" onClick={() => setEdit(edit === field ? null : field)}>
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
 
-  // Игрушки, которые можно удалить (есть в computed, нет remove-правки)
-  const canRemoveToys = useMemo(() => {
-    if (!data) return []
-    const removeIds = new Set(overrides.filter(o => o.action === "remove").map(o => o.toyId))
-    return data.toys.filter(t => !removeIds.has(t.id))
-  }, [data, overrides])
-
-  if (!num) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Некорректный номер аппарата</p>
-      </div>
-    )
-  }
+  const openTech = () => { setTechIds(m.technicians.map(t => t.id)); setTechOpen(!techOpen) }
+  const openRoute = () => { setRouteIds(m.routes.map(r => r.id)); setRouteOpen(!routeOpen) }
+  const openToy = () => { setToyIds(m.toys.map(t => t.id)); setToyOpen(!toyOpen) }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Карточка аппарата №{num}</h1>
-        <p className="text-muted-foreground">Детальная информация по номеру</p>
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/admin/machines")}><ArrowLeft className="h-5 w-5" /></Button>
+        <div><h1 className="text-2xl font-bold tracking-tight">Карточка аппарата №{m.number}</h1><p className="text-muted-foreground">Детальная информация по аппарату</p></div>
       </div>
 
-      {isLoading && (
-        <div className="flex items-center justify-center h-32">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {statsCards.map((c, i) => (
+          <Card key={i}><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{c.title}</CardTitle><c.icon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{c.value}</div></CardContent></Card>
+        ))}
+      </div>
 
-      {error && <p className="text-destructive">Аппарат не найден или ошибка загрузки</p>}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Основная информация */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Основная информация</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {editRow("Тип аппарата", "typeId", m.typeName,
+              <InlineSelect value={m.typeId} options={typeOptions} onChange={(v) => save("typeId", v)} onClose={() => setEdit(null)} />,
+              <Wrench className="h-4 w-4 text-muted-foreground" />
+            )}
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground w-32">Адрес:</span><span className="text-sm font-medium">{m.locationName}</span>
+            </div>
+            {editRow("Цена игры", "pricePerGame", `${m.pricePerGame} ₽`,
+              <InlineInput value={m.pricePerGame} type="number" onChange={(v) => save("pricePerGame", v)} onClose={() => setEdit(null)} />,
+              <Coins className="h-4 w-4 text-muted-foreground" />
+            )}
+            {editRow("Статус", "status", m.status === "active" ? "Активен" : "Неактивен",
+              <InlineSelect value={m.status} options={statusOpts} onChange={(v) => save("status", v)} onClose={() => setEdit(null)} />
+            )}
+            {editRow("Счётчик призов", "hasPrizeCounter", m.hasPrizeCounter ? "Есть" : "Нет",
+              <InlineSelect value={m.hasPrizeCounter ? "true" : "false"} options={prizeOpts} onChange={(v) => save("hasPrizeCounter", v)} onClose={() => setEdit(null)} />
+            )}
+          </CardContent>
+        </Card>
 
-      {data && (
-        <>
-          {/* Информация об аппарате */}
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between">
-              <div>
-                <CardTitle className="text-xl">#{data.number} — {data.typeName}</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">{data.locationName}</p>
+        {/* Настройки и назначения */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Настройки и назначения</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {editRow("Мин. дней (обсл.)", "minServiceDays", m.minServiceDays != null ? String(m.minServiceDays) : "—",
+              <InlineInput value={m.minServiceDays ?? ""} type="number" onChange={(v) => save("minServiceDays", v)} onClose={() => setEdit(null)} />
+            )}
+            {editRow("Макс. дней (обсл.)", "maxServiceDays", m.maxServiceDays != null ? String(m.maxServiceDays) : "—",
+              <InlineInput value={m.maxServiceDays ?? ""} type="number" onChange={(v) => save("maxServiceDays", v)} onClose={() => setEdit(null)} />
+            )}
+            {/* Technicians */}
+            <div className="flex items-start gap-2">
+              <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <span className="text-sm text-muted-foreground w-36">Техники:</span>
+              <div className="flex flex-wrap gap-1 flex-1">
+                {m.technicians.length > 0 ? m.technicians.map(t => <Badge key={t.id} variant="outline">{t.name}</Badge>) : <span className="text-sm text-muted-foreground">Не назначены</span>}
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={data.status === "active" ? "success" : "secondary"}>
-                  {data.status === "active" ? "Активен" : "Неактивен"}
-                </Badge>
-                <Button variant="outline" size="sm" onClick={toggleStatus}>
-                  {data.status === "active" ? "Деактивировать" : "Активировать"}
-                </Button>
-                <Dialog open={replaceOpen} onOpenChange={setReplaceOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Replace className="h-4 w-4 mr-1" />
-                      Заменить аппарат
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Замена аппарата на точке</DialogTitle>
-                      <DialogDescription>
-                        Текущий аппарат №{num} будет деактивирован, его настройки
-                        и привязки перенесены на новый. Цепочка обслуживаний
-                        текущего аппарата будет закрыта.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="newNumber">Номер нового аппарата</Label>
-                        <Input
-                          id="newNumber"
-                          type="number"
-                          min="1"
-                          value={newNumber}
-                          onChange={(e) => setNewNumber(e.target.value)}
-                          placeholder="Например: 12345"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="gameCounter">Начальный счётчик игр</Label>
-                        <Input
-                          id="gameCounter"
-                          type="number"
-                          min="0"
-                          value={gameCounter}
-                          onChange={(e) => setGameCounter(e.target.value)}
-                        />
-                      </div>
-                      {data.hasPrizeCounter && (
-                        <div className="space-y-2">
-                          <Label htmlFor="prizeCounter">Начальный счётчик призов</Label>
-                          <Input
-                            id="prizeCounter"
-                            type="number"
-                            min="0"
-                            value={prizeCounter}
-                            onChange={(e) => setPrizeCounter(e.target.value)}
-                          />
-                        </div>
-                      )}
-                      {replaceError && (
-                        <p className="text-sm text-destructive">{replaceError}</p>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setReplaceOpen(false)}>
-                        Отмена
-                      </Button>
-                      <Button onClick={handleReplace} disabled={replacing}>
-                        {replacing ? (
-                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        ) : null}
-                        Выполнить замену
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div><p className="text-xs text-muted-foreground">Цена игры</p><p className="text-lg font-semibold">{data.pricePerGame} ₽</p></div>
-                <div><p className="text-xs text-muted-foreground">Счётчик призов</p><p className="text-lg font-semibold">{data.hasPrizeCounter ? "Есть" : "Нет"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Мин. дней между обслуж.</p><p className="text-lg font-semibold">{data.minServiceDays ?? "—"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Макс. дней между обслуж.</p><p className="text-lg font-semibold">{data.maxServiceDays ?? "—"}</p></div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ROI график */}
-          {data.roiTrend && data.roiTrend.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle className="text-lg">Динамика ROI</CardTitle></CardHeader>
-              <CardContent>
-                <div className="flex items-end gap-1 h-32">
-                  {data.roiTrend.map((p, i) => (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full bg-primary/80 rounded-t" style={{ height: `${Math.max(4, Math.min(100, (p.roi / (Math.max(...data.roiTrend.map(x => x.roi), 1))) * 100))}%` }} title={`${p.date}: ROI ${p.roi}`} />
-                      <span className="text-[10px] text-muted-foreground truncate w-full text-center">{p.date.slice(5)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Вкладки */}
-          <Card>
-            <CardContent className="pt-6">
-              <Tabs defaultValue="toys">
-                <TabsList className="w-full">
-                  <TabsTrigger value="toys" className="flex-1"><Package className="h-4 w-4 mr-1" />Игрушки</TabsTrigger>
-                  <TabsTrigger value="routes" className="flex-1"><Route className="h-4 w-4 mr-1" />Маршруты</TabsTrigger>
-                  <TabsTrigger value="techs" className="flex-1"><Users className="h-4 w-4 mr-1" />Техники</TabsTrigger>
-                  <TabsTrigger value="history" className="flex-1"><History className="h-4 w-4 mr-1" />История</TabsTrigger>
-                  <TabsTrigger value="qr" className="flex-1"><QrCode className="h-4 w-4 mr-1" />QR</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="toys" className="pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm text-muted-foreground">Базовый набор типа + индивидуальные правки</p>
-                    <Button variant="outline" size="sm" onClick={openToysEdit}>
-                      <Settings className="h-4 w-4 mr-1" />
-                      Настроить правки
-                    </Button>
-                  </div>
-                  <Table>
-                    <TableHeader><TableRow><TableHead>Название</TableHead><TableHead className="text-right">Цена</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {data.toys.map((t) => (<TableRow key={t.id}><TableCell>{t.name}</TableCell><TableCell className="text-right">{t.price}₽</TableCell></TableRow>))}
-                      {data.toys.length === 0 && <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">Нет игрушек</TableCell></TableRow>}
-                    </TableBody>
-                  </Table>
-                </TabsContent>
-
-                <TabsContent value="routes" className="pt-4">
-                  {data.routes.length > 0 ? data.routes.map((r, i) => <p key={i} className="text-sm py-1">{r}</p>) : <p className="text-sm text-muted-foreground">Нет маршрутов</p>}
-                </TabsContent>
-
-                <TabsContent value="techs" className="pt-4">
-                  {data.technicians.length > 0 ? data.technicians.map((t, i) => <p key={i} className="text-sm py-1">{t}</p>) : <p className="text-sm text-muted-foreground">Нет закреплённых техников</p>}
-                </TabsContent>
-
-                <TabsContent value="history" className="pt-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Дата</TableHead>
-                        <TableHead>Счётчик</TableHead>
-                        <TableHead>Новых игр</TableHead>
-                        <TableHead className="text-right">ROI</TableHead>
-                        <TableHead>Техник</TableHead>
-                        <TableHead>Фото</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.services.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell>{s.serviceDate}</TableCell>
-                          <TableCell>{s.gameCounter.toLocaleString()}</TableCell>
-                          <TableCell>{s.newGames?.toLocaleString() ?? "—"}</TableCell>
-                          <TableCell className="text-right">{s.roi != null ? s.roi.toFixed(2) : "—"}</TableCell>
-                          <TableCell>{s.staffName}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              {s.photos.counter && <a href={s.photos.counter} target="_blank" rel="noopener noreferrer" aria-label="Счётчик"><Camera className="h-4 w-4 text-blue-600 hover:text-blue-800" /></a>}
-                              {s.photos.before && <a href={s.photos.before} target="_blank" rel="noopener noreferrer" aria-label="До"><Camera className="h-4 w-4 text-amber-600 hover:text-amber-800" /></a>}
-                              {s.photos.after && <a href={s.photos.after} target="_blank" rel="noopener noreferrer" aria-label="После"><Camera className="h-4 w-4 text-green-600 hover:text-green-800" /></a>}
-                              {!s.photos.counter && !s.photos.before && !s.photos.after && <span className="text-xs text-muted-foreground">—</span>}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {data.services.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Нет обслуживаний</TableCell></TableRow>}
-                    </TableBody>
-                  </Table>
-                </TabsContent>
-
-                <TabsContent value="qr" className="pt-4 flex flex-col items-center gap-3">
-                  <p className="text-sm text-muted-foreground">Напечатать QR-код для наклейки на аппарат. После сканирования техник откроется страница обслуживания.</p>
-                  <Button onClick={() => printMachineQR(data.number)}><QrCode className="h-4 w-4 mr-1" />Напечатать QR-код</Button>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {/* Диалог индивидуальных правок игрушек */}
-      <Dialog open={toysEditOpen} onOpenChange={setToysEditOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Индивидуальные правки игрушек</DialogTitle>
-            <DialogDescription>
-              Аппарат №{num}. Добавьте или удалите игрушки относительно базового набора типа.
-            </DialogDescription>
-          </DialogHeader>
-
-          {toysEditLoading ? (
-            <p className="text-muted-foreground text-center py-4">Загрузка...</p>
-          ) : (
-            <div className="space-y-4">
-              {/* Текущие правки */}
-              <div>
-                <p className="text-sm font-medium mb-2">Текущие правки:</p>
-                {overrides.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Нет индивидуальных правок</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {overrides.map((o) => {
-                      const toy = allToysFull.find(t => t.id === o.toyId)
-                      return (
-                        <Badge
-                          key={`${o.toyId}-${o.action}`}
-                          variant={o.action === "add" ? "success" : "destructive"}
-                          className="gap-1 pr-1"
-                        >
-                          {o.action === "add" ? "+" : "−"} {toy?.name ?? `ID ${o.toyId}`} ({toy?.price ?? 0} ₽)
-                        </Badge>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Добавить/удалить правку */}
-              <div>
-                <p className="text-sm font-medium mb-2">Добавить правку:</p>
-                <div className="flex gap-2 mb-2">
-                  <Button
-                    variant={editAction === "add" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => { setEditAction("add"); setEditToyId("") }}
-                  >
-                    Добавить игрушку
-                  </Button>
-                  <Button
-                    variant={editAction === "remove" ? "destructive" : "outline"}
-                    size="sm"
-                    onClick={() => { setEditAction("remove"); setEditToyId("") }}
-                  >
-                    Убрать игрушку
-                  </Button>
-                </div>
-
-                {editAction === "add" && (
-                  <div className="flex gap-2">
-                    <Select value={editToyId} onValueChange={setEditToyId}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Выберите игрушку..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableToAdd.map(toy => (
-                          <SelectItem key={toy.id} value={String(toy.id)}>
-                            {toy.name} ({toy.price} ₽)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      disabled={!editToyId || editSaving}
-                      onClick={handleToysEdit}
-                    >
-                      {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Добавить"}
-                    </Button>
-                  </div>
-                )}
-
-                {editAction === "remove" && (
-                  <div className="flex gap-2">
-                    <Select value={editToyId} onValueChange={setEditToyId}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Выберите игрушку..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {canRemoveToys.map(toy => (
-                          <SelectItem key={toy.id} value={String(toy.id)}>
-                            {toy.name} ({toy.price} ₽)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={!editToyId || editSaving}
-                      onClick={handleToysEdit}
-                    >
-                      {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Убрать"}
-                    </Button>
-                  </div>
-                )}
+              <div className="relative flex-shrink-0">
+                <button className="text-muted-foreground hover:text-foreground" onClick={openTech}><Pencil className="h-3.5 w-3.5" /></button>
+                {techOpen && <MultiSelectPopover title="Выберите техников" allOptions={mappedStaff} selectedIds={techIds}
+                  onToggle={(id: number) => setTechIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])}
+                  onClose={() => { tm.mutate(techIds); setTechOpen(false) }} />}
               </div>
             </div>
+            {/* Routes */}
+            <div className="flex items-start gap-2">
+              <Route className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <span className="text-sm text-muted-foreground w-36">Маршруты:</span>
+              <div className="flex flex-wrap gap-1 flex-1">
+                {m.routes.length > 0 ? m.routes.map(r => <Badge key={r.id} variant="outline">{r.name}</Badge>) : <span className="text-sm text-muted-foreground">Не назначены</span>}
+              </div>
+              <div className="relative flex-shrink-0">
+                <button className="text-muted-foreground hover:text-foreground" onClick={openRoute}><Pencil className="h-3.5 w-3.5" /></button>
+                {routeOpen && <MultiSelectPopover title="Выберите маршруты" allOptions={mappedRoutes} selectedIds={routeIds}
+                  onToggle={(id: number) => setRouteIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])}
+                  onClose={() => { rm.mutate(routeIds); setRouteOpen(false) }} />}
+              </div>
+            </div>
+            {/* Toys */}
+            <div className="flex items-start gap-2">
+              <Package className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <span className="text-sm text-muted-foreground w-36">Игрушки:</span>
+              <div className="flex flex-wrap gap-1 flex-1">
+                {m.toys.length > 0 ? m.toys.map(t => <Badge key={t.id} variant="outline">{t.name} ({t.price}₽)</Badge>) : <span className="text-sm text-muted-foreground">Нет игрушек</span>}
+              </div>
+              <div className="relative flex-shrink-0">
+                <button className="text-muted-foreground hover:text-foreground" onClick={openToy}><Pencil className="h-3.5 w-3.5" /></button>
+                {toyOpen && <MultiSelectPopover title="Выберите игрушки" allOptions={mappedToys.map(t => ({ id: t.id, name: `${t.name} (${t.price}₽)` }))} selectedIds={toyIds}
+                  onToggle={(id: number) => setToyIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])}
+                  onClose={() => { tym.mutate(toyIds); setToyOpen(false) }} />}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Таблица обслуживаний */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">История обслуживаний</CardTitle></CardHeader>
+        <CardContent>
+          {m.services.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Нет данных об обслуживаниях</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Дата</TableHead>
+                    <TableHead>Техник</TableHead>
+                    <TableHead>Счётчик игр</TableHead>
+                    <TableHead>Выручка</TableHead>
+                    <TableHead>Затраты на игрушки</TableHead>
+                    <TableHead>Заложено игрушек</TableHead>
+                    <TableHead>Фото счётчика</TableHead>
+                    <TableHead>Комментарий</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {m.services.map(s => (
+                    <TableRow key={s.id}>
+                      <TableCell>{new Date(s.serviceDate).toLocaleDateString("ru-RU")}</TableCell>
+                      <TableCell>{s.staffName}</TableCell>
+                      <TableCell>{s.gameCounter}</TableCell>
+                      <TableCell>{s.revenue != null ? `${s.revenue.toLocaleString()} ₽` : "—"}</TableCell>
+                      <TableCell>{s.costOfToys != null ? `${Number(s.costOfToys).toLocaleString()} ₽` : "—"}</TableCell>
+                      <TableCell>
+                        {s.toyDistribution?.length > 0
+                          ? (s.toyDistribution as Array<{ toyName: string; quantity: number; priceSnapshot: number; totalCost: number }>).map((td, i) => (
+                              <div key={i} className="text-xs">{td.toyName}: {td.quantity} шт.</div>
+                            ))
+                          : "—"}
+                      </TableCell>
+                      <TableCell align="center">
+                        {s.photos?.counter ? (
+                          <button
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => setPhotoDialog(s.photos?.counter ?? null)}
+                            title="Просмотреть фото счётчика"
+                          >
+                            <Camera className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate" title={s.comment || ""}>{s.comment || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Диалог просмотра фото счётчика */}
+      <Dialog open={!!photoDialog} onOpenChange={() => setPhotoDialog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Фото счётчика игр</DialogTitle>
+          </DialogHeader>
+          {photoDialog && (
+            <img
+              src={photoDialog}
+              alt="Фото счётчика игр"
+              className="w-full max-h-[70vh] object-contain rounded"
+            />
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// Inline helpers
+const InlineSelect = ({ value, options, onChange, onClose }: {
+  value: string | number
+  options: { value: string | number; label: string }[]
+  onChange: (v: string | number) => void
+  onClose: () => void
+}) => {
+  const ref = useRef<HTMLSelectElement>(null)
+  useEffect(() => { ref.current?.focus() }, [])
+  return (
+    <select ref={ref} value={value} onBlur={onClose}
+      onChange={(e) => onChange(typeof options[0]?.value === "number" ? Number(e.target.value) : e.target.value)}
+      className="border rounded px-2 py-1 text-sm w-full max-w-[200px]"
+    >{options.map(o => <option key={String(o.value)} value={o.value}>{o.label}</option>)}</select>
+  )
+}
+
+const InlineInput = ({ value, type, onChange, onClose }: {
+  value: string | number
+  type?: "number" | "text"
+  onChange: (v: string | number) => void
+  onClose: () => void
+}) => {
+  const [local, setLocal] = useState<string | number>(value)
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => { ref.current?.focus(); ref.current?.select() }, [])
+  const submit = useCallback(() => {
+    const v = type === "number" ? Number(local) : local
+    if (v === value) { onClose(); return }
+    onChange(v)
+  }, [local, type, value, onChange, onClose])
+  return (
+    <input ref={ref} type={type ?? "text"} value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={submit}
+      onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") onClose() }}
+      className="border rounded px-2 py-1 text-sm w-full max-w-[160px]" />
+  )
+}
+
+const MultiSelectPopover = ({ title, allOptions, selectedIds, onToggle, onClose }: {
+  title: string
+  allOptions: { id: number; name: string }[]
+  selectedIds: number[]
+  onToggle: (id: number) => void
+  onClose: () => void
+}) => {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [onClose])
+  return (
+    <div ref={ref} className="absolute right-0 z-50 mt-1 bg-white border rounded-lg shadow-lg p-2 w-56 max-h-60 overflow-y-auto">
+      <div className="text-xs font-semibold text-muted-foreground mb-1 px-1">{title}</div>
+      {allOptions.length === 0 && <div className="text-xs text-muted-foreground px-1 py-2">Нет доступных</div>}
+      {allOptions.map(opt => (
+        <label key={opt.id} className="flex items-center gap-2 px-1 py-1 rounded hover:bg-muted cursor-pointer text-sm">
+          <input type="checkbox" checked={selectedIds.includes(opt.id)} onChange={() => onToggle(opt.id)} className="rounded" />{opt.name}
+        </label>
+      ))}
     </div>
   )
 }

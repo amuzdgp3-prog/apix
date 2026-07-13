@@ -69,3 +69,19 @@ export async function authenticate(
 export async function authPlugin(app: FastifyInstance) {
   app.decorateRequest("user", null);
 }
+
+/**
+ * Middleware для проверки роли admin.
+ * Должен вызываться ПОСЛЕ authenticate.
+ */
+export async function requireAdmin(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  if (request.user.role !== "admin") {
+    return reply.status(403).send({
+      success: false,
+      error: "Forbidden: admin access required",
+    });
+  }
+}

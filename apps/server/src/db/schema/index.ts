@@ -12,4 +12,4 @@ export * from "./machines";
 export * from "./placements";
 export * from "./services";
 export * from "./audit";
-
+export * from "./errors";

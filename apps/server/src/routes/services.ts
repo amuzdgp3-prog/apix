@@ -1,6 +1,5 @@
-
 import { FastifyInstance, FastifyRequest } from "fastify";
-import { eq, and, gte, lte, desc, sql, count } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, count, ilike } from "drizzle-orm";
 import { z } from "zod";
 import { zSchema } from "../utils/zod-json-schema.js";
 import { db } from "../db/index.js";
@@ -37,6 +36,8 @@ export async function serviceRoutes(app: FastifyInstance) {
             limit: z.string().optional(),
             machineNumber: z.string().optional(),
             staffId: z.string().optional(),
+            staffName: z.string().optional(),
+            locationName: z.string().optional(),
             dateFrom: z.string().optional(),
             dateTo: z.string().optional(),
             city: z.string().optional(),
@@ -81,6 +82,8 @@ export async function serviceRoutes(app: FastifyInstance) {
         limit: limitStr,
         machineNumber,
         staffId,
+        staffName,
+        locationName,
         dateFrom,
         dateTo,
         city,
@@ -91,6 +94,8 @@ export async function serviceRoutes(app: FastifyInstance) {
         limit?: string;
         machineNumber?: string;
         staffId?: string;
+        staffName?: string;
+        locationName?: string;
         dateFrom?: string;
         dateTo?: string;
         city?: string;
@@ -101,85 +106,85 @@ export async function serviceRoutes(app: FastifyInstance) {
       const page = Math.max(1, parseInt(pageStr ?? "1", 10) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(limitStr ?? "20", 10) || 20));
 
-      // Build base query with always-required joins
-      const baseQuery = db
-        .select({
-          id: service.id,
-          staffId: service.staffId,
-          staffName: staff.fullName,
-          placementId: service.placementId,
-          machineNumber: machines.number,
-          locationName: locations.name,
-          serviceDate: service.serviceDate,
-          serviceTime: service.serviceTime,
-          revenue: service.revenue,
-          costOfToys: service.costOfToys,
-          roi: service.roi,
-          periodDays: service.periodDays,
-          gameCounter: service.gameCounter,
-          isOperational: service.isOperational,
-          comment: service.comment,
-          createdAt: service.createdAt,
-        })
+      // Build base select fields (shared between data and count queries)
+      const selectFields = {
+        id: service.id,
+        staffId: service.staffId,
+        staffName: staff.fullName,
+        placementId: service.placementId,
+        machineNumber: machines.number,
+        locationName: locations.name,
+        serviceDate: service.serviceDate,
+        serviceTime: service.serviceTime,
+        revenue: service.revenue,
+        costOfToys: service.costOfToys,
+        roi: service.roi,
+        periodDays: service.periodDays,
+        gameCounter: service.gameCounter,
+        isOperational: service.isOperational,
+        comment: service.comment,
+        createdAt: service.createdAt,
+      };
+
+      // Build WHERE conditions as a reusable array of SQL fragments
+      const whereConditions: (ReturnType<typeof sql> | ReturnType<typeof and>)[] = [];
+
+      if (machineNumber) {
+        whereConditions.push(eq(machinePlacements.machineNumber, parseInt(machineNumber, 10)));
+      }
+      if (staffId) {
+        whereConditions.push(eq(service.staffId, parseInt(staffId, 10)));
+      }
+      if (staffName) {
+        whereConditions.push(sql`${staff.fullName} ILIKE ${"%" + staffName + "%"}`);
+      }
+      if (locationName) {
+        whereConditions.push(sql`${locations.name} ILIKE ${"%" + locationName + "%"}`);
+      }
+      if (dateFrom) {
+        whereConditions.push(gte(service.serviceDate, dateFrom));
+      }
+      if (dateTo) {
+        whereConditions.push(lte(service.serviceDate, dateTo));
+      }
+      if (city) {
+        whereConditions.push(and(eq(locations.nodeType, "city"), eq(locations.name, city)));
+      }
+      if (isOperational !== undefined && isOperational !== "") {
+        whereConditions.push(eq(service.isOperational, isOperational === "true"));
+      }
+      if (routeId) {
+        whereConditions.push(sql`EXISTS (
+          SELECT 1 FROM ${machineRoutes}
+          WHERE ${machineRoutes.machineNumber} = ${machines.number}
+          AND ${machineRoutes.routeId} = ${parseInt(routeId, 10)}
+        )`);
+      }
+
+      const whereExpr = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+      // Count query: separate builder
+      const countBuilder = db
+        .select({ cnt: count() })
         .from(service)
         .innerJoin(machinePlacements, eq(service.placementId, machinePlacements.id))
         .innerJoin(machines, eq(machinePlacements.machineNumber, machines.number))
         .innerJoin(locations, eq(machines.locationId, locations.id))
         .leftJoin(staff, eq(service.staffId, staff.id));
 
-      // Build conditions as SQL chunks
-      const condFragments: ReturnType<typeof and>[] = [];
-      if (machineNumber) {
-        condFragments.push(eq(machinePlacements.machineNumber, parseInt(machineNumber, 10)));
-      }
-      if (staffId) {
-        condFragments.push(eq(service.staffId, parseInt(staffId, 10)));
-      }
-      if (dateFrom) {
-        condFragments.push(gte(service.serviceDate, dateFrom));
-      }
-      if (dateTo) {
-        condFragments.push(lte(service.serviceDate, dateTo));
-      }
-      if (city) {
-        condFragments.push(and(eq(locations.nodeType, "city"), eq(locations.name, city)));
-      }
-      if (isOperational !== undefined && isOperational !== "") {
-        condFragments.push(eq(service.isOperational, isOperational === "true"));
-      }
+      const [totalRow] = await (whereExpr ? countBuilder.where(whereExpr) : countBuilder);
+      const total = totalRow?.cnt ?? 0;
 
-      const routeSQL = routeId
-        ? sql`EXISTS (
-            SELECT 1 FROM ${machineRoutes}
-            WHERE ${machineRoutes.machineNumber} = ${machines.number}
-            AND ${machineRoutes.routeId} = ${parseInt(routeId, 10)}
-          )`
-        : undefined;
-
-      // Build WHERE clause
-      const whereClause =
-        condFragments.length > 0 && routeSQL
-          ? and(...condFragments, routeSQL)
-          : condFragments.length > 0
-            ? and(...condFragments)
-            : routeSQL;
-
-      // Apply WHERE to base query
-      const filteredQuery = whereClause ? baseQuery.where(whereClause) : baseQuery;
-
-      // Count total
-      const [totalRow] = await db
-        .select({ cnt: count() })
+      // Data query: separate builder (do NOT reuse count builder)
+      const dataQuery = db
+        .select(selectFields)
         .from(service)
         .innerJoin(machinePlacements, eq(service.placementId, machinePlacements.id))
         .innerJoin(machines, eq(machinePlacements.machineNumber, machines.number))
         .innerJoin(locations, eq(machines.locationId, locations.id))
-        .leftJoin(staff, eq(service.staffId, staff.id))
-        .where(whereClause ?? sql`TRUE`);
-      const total = totalRow?.cnt ?? 0;
+        .leftJoin(staff, eq(service.staffId, staff.id));
 
-      // Fetch rows with pagination
-      const rows = await filteredQuery
+      const rows = await (whereExpr ? dataQuery.where(whereExpr) : dataQuery)
         .orderBy(desc(service.serviceDate), desc(service.id))
         .limit(limit)
         .offset((page - 1) * limit);

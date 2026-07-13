@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Menu, LogOut, ChevronRight, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 
 const PATH_MAP: Record<string, string> = {
   machines: "Автоматы",
@@ -11,6 +12,7 @@ const PATH_MAP: Record<string, string> = {
   "admin/reports": "Отчёты",
   "admin/analytics": "Аналитика",
   "admin/audit": "Аудит",
+  "admin/monitoring": "Мониторинг",
   "admin/machine-types": "Типы автоматов",
   "admin/toys": "Игрушки",
   "admin/staff": "Сотрудники",
@@ -36,13 +38,51 @@ function getBreadcrumbs(pathname: string) {
   return crumbs;
 }
 
+/** Декодируем payload JWT без верификации (имя уже проверено сервером) */
+function parseJwtPayload(token: string): { sub?: string; email?: string; role?: string; name?: string } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const raw = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return (parts[0]?.[0] ?? "?").toUpperCase();
+}
+
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const crumbs = getBreadcrumbs(location.pathname);
+  const [userName, setUserName] = useState("");
 
-  const handleLogout = () => {
-    // TODO: очистку токена и редирект на /login
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      const payload = parseJwtPayload(token);
+      const name = payload?.name ?? payload?.email ?? "";
+      setUserName(name);
+    }
+  }, []);
+
+  const initials = userName ? getInitials(userName) : "?";
+
+  const handleLogout = async () => {
+    // Удаляем accessToken и пытаемся сбросить refresh-куку на сервере
+    localStorage.removeItem("accessToken");
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+    } catch {
+      // игнорируем ошибку — токен уже удалён локально
+    }
     navigate("/login");
   };
 
@@ -63,9 +103,11 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Avatar placeholder */}
-          <div className="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-sm font-medium">
-            А
+          <div
+            className="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-sm font-medium"
+            title={userName || "Пользователь"}
+          >
+            {initials}
           </div>
 
           <Button
@@ -79,7 +121,6 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           </Button>
         </div>
       </div>
-
       {/* Breadcrumbs row */}
       <div className="px-4 pb-2 flex items-center gap-1 text-xs text-slate-300">
         {crumbs.map((crumb, i) => (
