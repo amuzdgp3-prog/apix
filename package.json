@@ -7,7 +7,10 @@
     "dev": "pnpm --filter @apix/shared build && pnpm --parallel run dev",
     "build": "pnpm --recursive run build",
     "lint": "pnpm --recursive run lint",
-    "clean": "pnpm --recursive run clean"
+    "clean": "pnpm --recursive run clean",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -16,6 +19,7 @@
   "devDependencies": {
     "@playwright/mcp": "^0.0.76",
     "@playwright/test": "^1.61.1",
+    "@types/node": "^20.19.43",
     "prettier": "^3.2.0",
     "typescript": "^5.4.0"
   }

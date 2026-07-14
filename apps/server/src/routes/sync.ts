@@ -165,8 +165,8 @@ export async function syncRoutes(app: FastifyInstance) {
         }
       };
 
-      checkFile("photoBefore", true);
-      checkFile("photoAfter", true);
+      checkFile("photoBefore", false);
+      checkFile("photoAfter", false);
       checkFile("photoCounter", false);
 
       if (errors.length > 0) {

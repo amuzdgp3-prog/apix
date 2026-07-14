@@ -236,11 +236,41 @@ export async function machineRoutes(app: FastifyInstance) {
 
       if (!m) return _reply.status(404).send({ error: "Not found" });
 
-      const machineToys = await db
+      // Базовый набор игрушек для типа аппарата
+      const baseToyRows = await db
         .select({ id: toys.id, name: toys.name, price: toys.price })
         .from(toys)
         .innerJoin(machineTypeToys, eq(toys.id, machineTypeToys.toyId))
         .where(eq(machineTypeToys.machineTypeId, m.typeId as unknown as number));
+
+      // Индивидуальные правки (add/remove) для конкретного аппарата
+      const overrideRows = await db
+        .select({ toyId: machineToys.toyId, action: machineToys.action })
+        .from(machineToys)
+        .where(eq(machineToys.machineNumber, machineNumber));
+
+      const addIds = overrideRows
+        .filter((o) => o.action === "add")
+        .map((o) => o.toyId);
+      const removeIds = new Set(
+        overrideRows.filter((o) => o.action === "remove").map((o) => o.toyId),
+      );
+
+      const computedToys = baseToyRows.filter((t: { id: number }) => !removeIds.has(t.id));
+
+      if (addIds.length > 0) {
+        const addToyRows: Array<{ id: number; name: string; price: string }> = await db
+          .select({ id: toys.id, name: toys.name, price: toys.price })
+          .from(toys)
+          .where(sql`${toys.id} IN ${addIds}`);
+
+        const existingIds = new Set(computedToys.map((t) => t.id));
+        for (const t of addToyRows) {
+          if (!existingIds.has(t.id)) {
+            computedToys.push(t);
+          }
+        }
+      }
 
       const techRows = await db
         .select({ id: staff.id, name: sql<string>`${staff.fullName}` })
@@ -346,7 +376,7 @@ export async function machineRoutes(app: FastifyInstance) {
         hasPrizeCounter: m.hasPrizeCounter,
         minServiceDays: m.minServiceDays,
         maxServiceDays: m.maxServiceDays,
-        toys: machineToys.map((t) => ({ id: t.id, name: t.name, price: Number(t.price) })),
+        toys: computedToys.map((t) => ({ id: t.id, name: t.name, price: Number(t.price) })),
         technicians: techRows.map((r) => ({ id: r.id, name: String(r.name) })),
         routes: routeRows.map((r) => ({ id: r.id, name: String(r.name) })),
         services: serviceHistory.map((s) => ({
@@ -802,18 +832,58 @@ export async function machineRoutes(app: FastifyInstance) {
       }
 
       const [m] = await db
-        .select({ number: machines.number })
+        .select({ typeId: machines.typeId })
         .from(machines)
         .where(and(eq(machines.number, machineNumber), isNull(machines.deletedAt)))
         .limit(1);
       if (!m) return reply.status(404).send({ error: "Аппарат не найден" });
 
-      await db.delete(machineToys).where(eq(machineToys.machineNumber, machineNumber));
-      if (parsed.data.toyIds.length > 0) {
-        await db.insert(machineToys).values(
-          parsed.data.toyIds.map((tid: number) => ({ machineNumber, toyId: tid, action: "add" as const })),
-        );
+      const selectedIds = new Set(parsed.data.toyIds);
+
+      // Проверить, что все переданные toyIds существуют в таблице toys
+      if (selectedIds.size > 0) {
+        const existingToys = await db
+          .select({ id: toys.id })
+          .from(toys)
+          .where(sql`${toys.id} IN ${[...selectedIds]}`);
+        const existingIds = new Set(existingToys.map((t) => t.id));
+        const missingIds = [...selectedIds].filter((id) => !existingIds.has(id));
+        if (missingIds.length > 0) {
+          return reply.status(400).send({
+            error: "Некоторые игрушки не найдены в справочнике",
+            missingIds,
+          });
+        }
       }
+
+      // Базовый набор игрушек для типа аппарата
+      const baseToyRows = await db
+        .select({ id: machineTypeToys.toyId })
+        .from(machineTypeToys)
+        .where(eq(machineTypeToys.machineTypeId, m.typeId as unknown as number));
+      const baseIds = new Set(baseToyRows.map((r) => r.id));
+
+      // Удалить все старые правки
+      await db.delete(machineToys).where(eq(machineToys.machineNumber, machineNumber));
+
+      // Для игрушек, которых нет в базе, но они выбраны → add
+      // Для базовых игрушек, которых нет среди выбранных → remove
+      const inserts: Array<{ machineNumber: number; toyId: number; action: "add" | "remove" }> = [];
+      for (const id of selectedIds) {
+        if (!baseIds.has(id)) {
+          inserts.push({ machineNumber, toyId: id, action: "add" });
+        }
+      }
+      for (const id of baseIds) {
+        if (!selectedIds.has(id)) {
+          inserts.push({ machineNumber, toyId: id, action: "remove" });
+        }
+      }
+
+      if (inserts.length > 0) {
+        await db.insert(machineToys).values(inserts);
+      }
+
       return reply.send({ ok: true });
     },
   );

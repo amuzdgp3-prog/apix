@@ -23,7 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { db, type DraftService } from "@/store/db";
-import { uploadMultipart } from "@/api/client";
+import { api, uploadMultipart } from "@/api/client";
 import QrScanner from "@/components/QrScanner";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import type { SyncResponse, PreviewResponse } from "@apix/shared";
@@ -95,7 +95,8 @@ export default function ServiceForm() {
     periodDays: number;
   } | null>(null);
 
-  // Справочник игрушек (computed с сервера: базовый набор + индивидуальные правки)
+  // Справочник игрушек — загружаем ВСЕ игрушки из общего справочника,
+  // чтобы техник мог добавить любые игрушки при обслуживании
   // ==========================================
 
   const [toyCatalog, setToyCatalog] = useState<
@@ -103,14 +104,50 @@ export default function ServiceForm() {
   >([]);
 
   useEffect(() => {
-    if (!machineNumber) return;
-    fetch(`/api/machines/${machineNumber}/toys`)
-      .then((res) => res.json())
-      .then((rows: Array<{ id: number; name: string; price: number }>) =>
-        setToyCatalog(rows),
-      )
-      .catch(() => {});
-  }, [machineNumber]);
+    api
+      .get<Array<{ id: number; name: string; price: string | number }>>("/toys")
+      .then(async (rows) => {
+        const catalog = rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          price: typeof r.price === "string" ? parseFloat(r.price) : r.price,
+        }));
+        setToyCatalog(catalog);
+
+        // Сохранить в IndexedDB для оффлайн-режима
+        try {
+          await db.toys.clear();
+          await db.toys.bulkPut(
+            catalog.map((t) => ({
+              id: String(t.id),
+              name: t.name,
+              price: t.price,
+              category: null,
+              created_at: new Date().toISOString(),
+            })),
+          );
+        } catch {
+          // Игнорируем ошибки записи в IndexedDB
+        }
+      })
+      .catch(async () => {
+        // Fallback: загрузить игрушки из IndexedDB (оффлайн-режим)
+        try {
+          const stored = await db.toys.toArray();
+          if (stored.length > 0) {
+            setToyCatalog(
+              stored.map((t) => ({
+                id: Number(t.id),
+                name: t.name,
+                price: t.price,
+              })),
+            );
+          }
+        } catch {
+          // IndexedDB тоже недоступен — каталог останется пустым
+        }
+      });
+  }, []);
 
   // ==========================================
   // Адрес машины для черновика
@@ -176,27 +213,18 @@ export default function ServiceForm() {
 
     setPreview({ status: "loading" });
 
-    fetch("/api/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        machineNumber,
-        serviceDate,
-        gameCounter: gCount,
-        testGames: Number(testGames) || 0,
-        toys: toysForPreview,
-      }),
-      signal: abortController.current.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(
-            (body as { message?: string }).message ?? "Preview failed",
-          );
-        }
-        return res.json() as Promise<PreviewResponse>;
-      })
+    api
+      .post<PreviewResponse>(
+        "/preview",
+        {
+          machineNumber,
+          serviceDate,
+          gameCounter: gCount,
+          testGames: Number(testGames) || 0,
+          toys: toysForPreview,
+        },
+        { signal: abortController.current.signal },
+      )
       .then((data) => setPreview({ status: "ready", data }))
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -625,7 +653,7 @@ export default function ServiceForm() {
             </div>
           )}
 
-          {toyCatalog.length > 0 && (
+          {toyCatalog.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {toyCatalog
                 .filter((t) => !toys.find((tt) => tt.toyId === t.id))
@@ -641,6 +669,11 @@ export default function ServiceForm() {
                   </Button>
                 ))}
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Нет доступных игрушек. Проверьте подключение к интернету или
+              добавьте игрушки в справочнике.
+            </p>
           )}
 
           {toys.length > 0 && (

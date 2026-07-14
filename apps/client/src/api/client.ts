@@ -84,6 +84,10 @@ async function request<T>(
         },
       });
     } catch (networkError) {
+      // AbortError — не повторяем, пробрасываем дальше
+      if (networkError instanceof DOMException && networkError.name === "AbortError") {
+        throw networkError;
+      }
       // Network error — retry with exponential backoff
       if (retryCount < MAX_RETRIES) {
         await new Promise((r) => setTimeout(r, RETRY_DELAY * (retryCount + 1)));
