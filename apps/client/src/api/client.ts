@@ -74,11 +74,13 @@ async function request<T>(
   async function doFetch(token: string | null): Promise<T> {
     let res: Response;
     try {
+      const isFormData = options.body instanceof FormData;
       res = await fetch(url.toString(), {
         ...options,
         credentials: "same-origin",
         headers: {
-          "Content-Type": "application/json",
+          // Не устанавливаем Content-Type для FormData — браузер сам добавит с boundary
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
           ...options.headers,
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -100,11 +102,12 @@ async function request<T>(
       const newToken = await refreshAccessToken();
       if (newToken) {
         // Retry once with new token
+        const isFormDataRetry = options.body instanceof FormData;
         const retryRes = await fetch(url.toString(), {
           ...options,
           credentials: "same-origin",
           headers: {
-            "Content-Type": "application/json",
+            ...(isFormDataRetry ? {} : { "Content-Type": "application/json" }),
             ...options.headers,
             Authorization: `Bearer ${newToken}`,
           },

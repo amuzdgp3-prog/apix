@@ -9,7 +9,6 @@ import {
   Trash2,
   Loader2,
   AlertTriangle,
-  CheckCircle2,
   QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,9 +49,9 @@ type PreviewState =
 // ==========================================
 
 export default function ServiceForm() {
-  const { machineId } = useParams<{ machineId: string }>();
+  const { number } = useParams<{ number: string }>();
   const navigate = useNavigate();
-  const machineNumber = Number(machineId ?? 0);
+  const machineNumber = Number(number ?? 0);
 
   // Поля формы
   const [serviceDate, setServiceDate] = useState(
@@ -375,13 +374,9 @@ export default function ServiceForm() {
       );
 
       if (response.success) {
-        setSubmitResult({
-          recordId: response.recordId,
-          newGames: response.calculations.newGames,
-          revenue: response.calculations.revenue,
-          roi: response.calculations.roi,
-          periodDays: response.calculations.periodDays,
-        });
+        // Сохраняем результат и сразу редиректим на список машин
+        navigate(`/machines?synced=${response.recordId}`, { replace: true });
+        return;
       } else {
         const messages = response.errors
           .map((e) => `${e.field}: ${e.message}`)
@@ -416,67 +411,12 @@ export default function ServiceForm() {
   // Экран успеха
   // ==========================================
 
+  // После успешного сохранения сразу переходим к списку машин
   if (submitResult) {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-600">
-              <CheckCircle2 className="h-6 w-6" />
-              Обслуживание сохранено
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p>
-              <span className="text-muted-foreground">Номер записи:</span>{" "}
-              <span className="font-mono">{submitResult.recordId}</span>
-            </p>
-            <p>
-              <span className="text-muted-foreground">Новых игр:</span>{" "}
-              {submitResult.newGames}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Выручка:</span>{" "}
-              {submitResult.revenue.toFixed(2)} ₽
-            </p>
-            {submitResult.roi !== null && (
-              <p>
-                <span className="text-muted-foreground">ROI:</span>{" "}
-                {submitResult.roi.toFixed(2)}%
-              </p>
-            )}
-            <p>
-              <span className="text-muted-foreground">Период:</span>{" "}
-              {submitResult.periodDays} дн.
-            </p>
-          </CardContent>
-        </Card>
-
-        <div className="flex gap-4">
-          <Button variant="outline" onClick={() => navigate("/machines")}>
-            К списку машин
-          </Button>
-          <Button
-            onClick={() => {
-              setSubmitResult(null);
-              setGameCounter("");
-              setPrizeCounter("");
-              setPhotoBefore(null);
-              setPhotoAfter(null);
-              setPhotoCounter(null);
-              setPhotoBeforePreview(null);
-              setPhotoAfterPreview(null);
-              setPhotoCounterPreview(null);
-              setToys([]);
-              setComment("");
-              setPreview({ status: "idle" });
-            }}
-          >
-            Новое обслуживание
-          </Button>
-        </div>
-      </div>
-    );
+    useEffect(() => {
+      navigate("/machines");
+    }, []);
+    return null;
   }
 
   // ==========================================
@@ -492,7 +432,7 @@ export default function ServiceForm() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">
-            Обслуживание №{machineId}
+            Обслуживание №{number}
           </h1>
           {machineAddress && (
             <p className="text-muted-foreground">{machineAddress}</p>
